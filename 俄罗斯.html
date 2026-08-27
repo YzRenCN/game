@@ -1,429 +1,174 @@
 
-/**
- * 俄罗斯方块核心逻辑
- * 包含：游戏循环、碰撞检测、方块生成、消行逻辑、渲染绘制
- */
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>霓虹俄罗斯方块</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    <style>
+        @import url('https://fonts.googleapis.com/css2?family=Orbitron:wght@400;700&display=swap');
 
-// --- 配置与常量 ---
-const COLS = 10;
-const ROWS = 20;
-const BLOCK_SIZE = 24; // 每个方块的像素大小
-const COLORS = [
-    null,
-    '#FF0D72', // T - Magenta
-    '#0DC2FF', // I - Cyan
-    '#0DFF72', // S - Green
-    '#F538FF', // Z - Purple (Custom)
-    '#FF8E0D', // L - Orange
-    '#FFE138', // O - Yellow
-    '#3877FF', // J - Blue
-];
-
-// 方块形状定义 (矩阵)
-const PIECES = [
-    [],
-    [[0, 1, 0], [1, 1, 1], [0, 0, 0]], // T
-    [[0, 1, 0, 0], [0, 1, 0, 0], [0, 1, 0, 0], [0, 1, 0, 0]], // I
-    [[0, 1, 1], [1, 1, 0], [0, 0, 0]], // S
-    [[1, 1, 0], [0, 1, 1], [0, 0, 0]], // Z
-    [[0, 0, 1], [1, 1, 1], [0, 0, 0]], // L
-    [[1, 1], [1, 1]],                   // O
-    [[1, 0, 0], [1, 1, 1], [0, 0, 0]], // J
-];
-
-// --- 游戏状态 ---
-const canvas = document.getElementById('tetris');
-const ctx = canvas.getContext('2d');
-const nextCanvas = document.getElementById('next-piece');
-const nextCtx = nextCanvas.getContext('2d');
-
-// 缩放 Canvas 以适应高分屏或保持清晰
-ctx.scale(1, 1); 
-
-let arena = createMatrix(COLS, ROWS);
-let player = {
-    pos: {x: 0, y: 0},
-    matrix: null,
-    score: 0,
-    level: 1,
-    lines: 0,
-    next: null
-};
-
-let dropCounter = 0;
-let dropInterval = 1000;
-let lastTime = 0;
-let isPaused = false;
-let isGameOver = false;
-let animationId = null;
-let soundEnabled = true;
-
-// --- 音频模拟 (使用 Web Audio API 简单实现 beep) ---
-const audioCtx = new (window.AudioContext || window.webkitAudioContext)();
-function playSound(type) {
-    if (!soundEnabled) return;
-    if (audioCtx.state === 'suspended') audioCtx.resume();
-    
-    const osc = audioCtx.createOscillator();
-    const gain = audioCtx.createGain();
-    osc.connect(gain);
-    gain.connect(audioCtx.destination);
-    
-    if (type === 'move') {
-        osc.frequency.value = 200;
-        gain.gain.setValueAtTime(0.05, audioCtx.currentTime);
-        osc.start();
-        osc.stop(audioCtx.currentTime + 0.05);
-    } else if (type === 'rotate') {
-        osc.frequency.value = 400;
-        gain.gain.setValueAtTime(0.05, audioCtx.currentTime);
-        osc.start();
-        osc.stop(audioCtx.currentTime + 0.05);
-    } else if (type === 'drop') {
-        osc.frequency.value = 100;
-        gain.gain.setValueAtTime(0.1, audioCtx.currentTime);
-        osc.start();
-        osc.stop(audioCtx.currentTime + 0.1);
-    } else if (type === 'clear') {
-        osc.frequency.value = 600;
-        osc.type = 'square';
-        gain.gain.setValueAtTime(0.1, audioCtx.currentTime);
-        osc.start();
-        osc.stop(audioCtx.currentTime + 0.2);
-    } else if (type === 'gameover') {
-        osc.frequency.value = 150;
-        osc.type = 'sawtooth';
-        gain.gain.setValueAtTime(0.2, audioCtx.currentTime);
-        osc.start();
-        osc.stop(audioCtx.currentTime + 0.5);
-    }
-}
-
-// --- 核心函数 ---
-
-function createMatrix(w, h) {
-    const matrix = [];
-    while (h--) {
-        matrix.push(new Array(w).fill(0));
-    }
-    return matrix;
-}
-
-function createPiece(type) {
-    // 随机生成 1-7
-    if (type === undefined) {
-        type = (Math.random() * 7 | 0) + 1;
-    }
-    // 深拷贝矩阵，防止引用修改
-    return PIECES[type].map(row => [...row]);
-}
-
-function drawMatrix(matrix, offset, context = ctx) {
-    matrix.forEach((row, y) => {
-        row.forEach((value, x) => {
-            if (value !== 0) {
-                // 绘制方块主体
-                context.fillStyle = COLORS[value];
-                context.fillRect((x + offset.x) * BLOCK_SIZE, (y + offset.y) * BLOCK_SIZE, BLOCK_SIZE, BLOCK_SIZE);
-                
-                // 绘制高光效果 (伪3D)
-                context.lineWidth = 2;
-                context.strokeStyle = 'rgba(255,255,255,0.3)';
-                context.strokeRect((x + offset.x) * BLOCK_SIZE, (y + offset.y) * BLOCK_SIZE, BLOCK_SIZE, BLOCK_SIZE);
-                
-                // 内部阴影
-                context.fillStyle = 'rgba(0,0,0,0.1)';
-                context.fillRect((x + offset.x) * BLOCK_SIZE + 4, (y + offset.y) * BLOCK_SIZE + 4, BLOCK_SIZE - 8, BLOCK_SIZE - 8);
-            }
-        });
-    });
-}
-
-function draw() {
-    // 清空画布
-    ctx.fillStyle = '#000';
-    ctx.fillRect(0, 0, canvas.width, canvas.height);
-
-    // 绘制已固定的方块
-    drawMatrix(arena, {x: 0, y: 0});
-    
-    // 绘制当前下落的方块
-    drawMatrix(player.matrix, player.pos);
-}
-
-function drawNextPiece() {
-    nextCtx.fillStyle = '#000'; // 背景
-    nextCtx.fillRect(0, 0, nextCanvas.width, nextCanvas.height);
-    
-    if (player.next) {
-        // 计算居中偏移
-        const boxSize = 20; // 预览区方块小一点
-        const offsetX = (nextCanvas.width / boxSize - player.next.length) / 2;
-        const offsetY = (nextCanvas.height / boxSize - player.next.length) / 2;
-        
-        player.next.forEach((row, y) => {
-            row.forEach((value, x) => {
-                if (value !== 0) {
-                    nextCtx.fillStyle = COLORS[value];
-                    nextCtx.fillRect((x + offsetX) * boxSize, (y + offsetY) * boxSize, boxSize - 1, boxSize - 1);
-                }
-            });
-        });
-    }
-}
-
-function merge(arena, player) {
-    player.matrix.forEach((row, y) => {
-        row.forEach((value, x) => {
-            if (value !== 0) {
-                arena[y + player.pos.y][x + player.pos.x] = value;
-            }
-        });
-    });
-}
-
-function rotate(matrix, dir) {
-    // 转置
-    for (let y = 0; y < matrix.length; ++y) {
-        for (let x = 0; x < y; ++x) {
-            [matrix[x][y], matrix[y][x]] = [matrix[y][x], matrix[x][y]];
+        body {
+            font-family: 'Orbitron', sans-serif;
+            background-color: #0f172a;
+            color: #e2e8f0;
+            overflow: hidden;
+            touch-action: none;
         }
-    }
-    // 反转行 (顺时针)
-    if (dir > 0) {
-        matrix.forEach(row => row.reverse());
-    } else {
-        matrix.reverse();
-    }
-}
 
-function playerRotate(dir) {
-    const pos = player.pos.x;
-    let offset = 1;
-    rotate(player.matrix, dir);
-    // 墙踢 (Wall Kick) 简单实现：如果旋转后碰撞，尝试左右移动
-    while (collide(arena, player)) {
-        player.pos.x += offset;
-        offset = -(offset + (offset > 0 ? 1 : -1));
-        if (offset > player.matrix.length) {
-            // 如果怎么移都碰撞，则转回来
-            rotate(player.matrix, -dir);
-            player.pos.x = pos;
-            return;
+        .game-container {
+            box-shadow: 0 0 50px rgba(56, 189, 248, 0.2);
         }
-    }
-    playSound('rotate');
-}
 
-function collide(arena, player) {
-    const [m, o] = [player.matrix, player.pos];
-    for (let y = 0; y < m.length; ++y) {
-        for (let x = 0; x < m[y].length; ++x) {
-            if (m[y][x] !== 0 &&
-               (arena[y + o.y] && arena[y + o.y][x + o.x]) !== 0) {
-                return true;
-            }
+        canvas {
+            background-color: #1e293b;
+            border: 2px solid #334155;
+            border-radius: 4px;
         }
-    }
-    return false;
-}
 
-function playerReset() {
-    if (player.next === null) {
-        player.next = createPiece();
-    }
-    player.matrix = player.next;
-    player.next = createPiece();
-    drawNextPiece();
-    
-    player.pos.y = 0;
-    player.pos.x = (arena.length / 2 | 0) - (player.matrix.length / 2 | 0);
-    
-    // 游戏结束检测
-    if (collide(arena, player)) {
-        isGameOver = true;
-        playSound('gameover');
-        document.getElementById('overlay').classList.remove('hidden');
-        document.getElementById('overlay-title').innerText = "GAME OVER";
-        document.getElementById('final-score').innerText = "最终得分: " + player.score;
-        cancelAnimationFrame(animationId);
-    }
-}
+        .neon-text {
+            text-shadow: 0 0 10px rgba(56, 189, 248, 0.8), 0 0 20px rgba(56, 189, 248, 0.4);
+        }
 
-function arenaSweep() {
-    let rowCount = 0;
-    outer: for (let y = arena.length - 1; y > 0; --y) {
-        for (let x = 0; x < arena[y].length; ++x) {
-            if (arena[y][x] === 0) {
-                continue outer;
-            }
+        .btn-control {
+            transition: all 0.1s;
+            active: scale-95;
         }
         
-        const row = arena.splice(y, 1).fill(0);
-        arena.unshift(row);
-        ++y;
-        rowCount++;
-    }
-    
-    if (rowCount > 0) {
-        playSound('clear');
-        // 计分规则: 1行100, 2行300, 3行500, 4行800
-        const lineScores = [0, 100, 300, 500, 800];
-        player.score += lineScores[rowCount] * player.level;
-        player.lines += rowCount;
+        .btn-control:active {
+            transform: scale(0.95);
+            background-color: #334155;
+        }
+
+        /* Modal Animation */
+        .modal-enter {
+            opacity: 0;
+            transform: scale(0.9);
+        }
+        .modal-enter-active {
+            opacity: 1;
+            transform: scale(1);
+            transition: opacity 0.3s, transform 0.3s;
+        }
+        .modal-exit {
+            opacity: 1;
+            transform: scale(1);
+        }
+        .modal-exit-active {
+            opacity: 0;
+            transform: scale(0.9);
+            transition: opacity 0.3s, transform 0.3s;
+        }
+    </style>
+</head>
+<body class="h-screen w-screen flex flex-col items-center justify-center relative">
+
+    <!-- Background Effects -->
+    <div class="absolute inset-0 z-0 opacity-20 pointer-events-none" style="background-image: radial-gradient(#334155 1px, transparent 1px); background-size: 20px 20px;"></div>
+
+    <!-- Header -->
+    <header class="absolute top-4 w-full text-center z-10">
+        <h1 class="text-4xl md:text-5xl font-bold text-cyan-400 neon-text tracking-wider">TETRIS <span class="text-pink-500 text-2xl align-top">NEON</span></h1>
+    </header>
+
+    <!-- Main Game Area -->
+    <main class="relative z-10 flex flex-col md:flex-row gap-6 items-start justify-center w-full max-w-4xl p-4">
         
-        // 每消除10行升一级
-        player.level = Math.floor(player.lines / 10) + 1;
-        // 速度随等级增加，最低100ms
-        dropInterval = Math.max(100, 1000 - (player.level - 1) * 100);
-        
-        updateScore();
-    }
-}
+        <!-- Left Panel: Stats -->
+        <div class="hidden md:flex flex-col gap-4 w-48 order-2 md:order-1">
+            <div class="bg-slate-800/80 backdrop-blur p-4 rounded-xl border border-slate-700 shadow-lg">
+                <h3 class="text-slate-400 text-sm uppercase mb-1">Score</h3>
+                <p id="score-display" class="text-2xl font-bold text-white">0</p>
+            </div>
+            <div class="bg-slate-800/80 backdrop-blur p-4 rounded-xl border border-slate-700 shadow-lg">
+                <h3 class="text-slate-400 text-sm uppercase mb-1">Level</h3>
+                <p id="level-display" class="text-2xl font-bold text-yellow-400">1</p>
+            </div>
+            <div class="bg-slate-800/80 backdrop-blur p-4 rounded-xl border border-slate-700 shadow-lg">
+                <h3 class="text-slate-400 text-sm uppercase mb-1">Lines</h3>
+                <p id="lines-display" class="text-2xl font-bold text-green-400">0</p>
+            </div>
+        </div>
 
-function updateScore() {
-    document.getElementById('score').innerText = player.score;
-    document.getElementById('level').innerText = player.level;
-    document.getElementById('lines').innerText = player.lines;
-    
-    // 本地存储最高分
-    const highScore = localStorage.getItem('tetris_highscore') || 0;
-    if (player.score > highScore) {
-        localStorage.setItem('tetris_highscore', player.score);
-    }
-}
+        <!-- Center: Canvas -->
+        <div class="relative order-1 md:order-2 game-container rounded-lg overflow-hidden">
+            <canvas id="tetris" width="240" height="400" class="block"></canvas>
+            
+            <!-- Mobile Stats Overlay (Top) -->
+            <div class="md:hidden absolute top-2 left-2 right-2 flex justify-between text-xs font-bold bg-black/50 p-2 rounded backdrop-blur-sm">
+                <span>SCORE: <span id="mobile-score">0</span></span>
+                <span>LVL: <span id="mobile-level">1</span></span>
+            </div>
+        </div>
 
-function playerDrop() {
-    player.pos.y++;
-    if (collide(arena, player)) {
-        player.pos.y--;
-        merge(arena, player);
-        playSound('drop');
-        playerReset();
-        arenaSweep();
-        updateScore();
-    }
-    dropCounter = 0;
-}
+        <!-- Right Panel: Next Piece & Controls Info -->
+        <div class="flex flex-col gap-4 w-full md:w-48 order-3">
+            <div class="bg-slate-800/80 backdrop-blur p-4 rounded-xl border border-slate-700 shadow-lg flex flex-col items-center">
+                <h3 class="text-slate-400 text-sm uppercase mb-2 w-full text-left">Next</h3>
+                <canvas id="next-piece" width="100" height="100" class="bg-slate-900/50 rounded border border-slate-700"></canvas>
+            </div>
 
-function playerMove(dir) {
-    player.pos.x += dir;
-    if (collide(arena, player)) {
-        player.pos.x -= dir;
-    } else {
-        playSound('move');
-    }
-}
+            <div class="bg-slate-800/80 backdrop-blur p-4 rounded-xl border border-slate-700 shadow-lg hidden md:block">
+                <h3 class="text-slate-400 text-sm uppercase mb-2">Controls</h3>
+                <ul class="text-xs text-slate-300 space-y-2">
+                    <li class="flex justify-between"><span>Move</span> <span class="text-cyan-400">← →</span></li>
+                    <li class="flex justify-between"><span>Rotate</span> <span class="text-cyan-400">↑</span></li>
+                    <li class="flex justify-between"><span>Soft Drop</span> <span class="text-cyan-400">↓</span></li>
+                    <li class="flex justify-between"><span>Hard Drop</span> <span class="text-cyan-400">Space</span></li>
+                    <li class="flex justify-between"><span>Pause</span> <span class="text-cyan-400">P</span></li>
+                </ul>
+            </div>
 
-function playerHardDrop() {
-    while (!collide(arena, player)) {
-        player.pos.y++;
-    }
-    player.pos.y--; // 回退一步到合法位置
-    merge(arena, player);
-    playSound('drop');
-    playerReset();
-    arenaSweep();
-    updateScore();
-    dropCounter = 0;
-}
+            <!-- Mobile Controls -->
+            <div class="md:hidden grid grid-cols-3 gap-2 mt-2">
+                <button id="btn-rotate" class="btn-control bg-slate-700 p-4 rounded-lg text-white shadow-lg"><i class="fas fa-rotate-right"></i></button>
+                <button id="btn-drop" class="btn-control bg-slate-700 p-4 rounded-lg text-white shadow-lg"><i class="fas fa-arrow-down"></i></button>
+                <button id="btn-pause-mobile" class="btn-control bg-slate-700 p-4 rounded-lg text-white shadow-lg"><i class="fas fa-pause"></i></button>
+                <button id="btn-left" class="btn-control bg-slate-700 p-4 rounded-lg text-white shadow-lg col-start-1"><i class="fas fa-arrow-left"></i></button>
+                <button id="btn-down" class="btn-control bg-slate-700 p-4 rounded-lg text-white shadow-lg"><i class="fas fa-chevron-down"></i></button>
+                <button id="btn-right" class="btn-control bg-slate-700 p-4 rounded-lg text-white shadow-lg col-start-3"><i class="fas fa-arrow-right"></i></button>
+            </div>
+        </div>
+    </main>
 
-function update(time = 0) {
-    if (isPaused || isGameOver) return;
+    <!-- Footer -->
+    <footer class="absolute bottom-4 text-slate-500 text-xs z-10">
+        <p>Press <span class="text-cyan-400">H</span> for Help | High Score: <span id="high-score">0</span></p>
+    </footer>
 
-    const deltaTime = time - lastTime;
-    lastTime = time;
+    <!-- Modals -->
+    <div id="start-modal" class="fixed inset-0 z-50 flex items-center justify-center bg-black/80 backdrop-blur-sm modal-enter-active">
+        <div class="bg-slate-800 p-8 rounded-2xl border border-cyan-500/50 shadow-2xl text-center max-w-sm w-full mx-4">
+            <h2 class="text-3xl font-bold text-white mb-2 neon-text">READY?</h2>
+            <p class="text-slate-400 mb-6">Use arrow keys to play.</p>
+            <button id="start-btn" class="w-full bg-cyan-600 hover:bg-cyan-500 text-white font-bold py-3 px-6 rounded-lg transition-all shadow-[0_0_15px_rgba(8,145,178,0.5)] hover:shadow-[0_0_25px_rgba(8,145,178,0.8)]">
+                START GAME
+            </button>
+        </div>
+    </div>
 
-    dropCounter += deltaTime;
-    if (dropCounter > dropInterval) {
-        playerDrop();
-    }
+    <div id="pause-modal" class="fixed inset-0 z-50 flex items-center justify-center bg-black/60 backdrop-blur-sm hidden">
+        <div class="bg-slate-800 p-6 rounded-xl border border-yellow-500/50 shadow-xl text-center">
+            <h2 class="text-2xl font-bold text-yellow-400 mb-4">PAUSED</h2>
+            <button id="resume-btn" class="bg-slate-700 hover:bg-slate-600 text-white px-6 py-2 rounded transition">Resume</button>
+        </div>
+    </div>
 
-    draw();
-    animationId = requestAnimationFrame(update);
-}
+    <div id="gameover-modal" class="fixed inset-0 z-50 flex items-center justify-center bg-black/90 backdrop-blur-md hidden">
+        <div class="bg-slate-800 p-8 rounded-2xl border border-red-500/50 shadow-2xl text-center max-w-sm w-full mx-4">
+            <h2 class="text-4xl font-bold text-red-500 mb-2 neon-text">GAME OVER</h2>
+            <div class="my-6 space-y-2">
+                <p class="text-slate-300">Final Score</p>
+                <p id="final-score" class="text-5xl font-bold text-white">0</p>
+            </div>
+            <button id="restart-btn" class="w-full bg-red-600 hover:bg-red-500 text-white font-bold py-3 px-6 rounded-lg transition-all shadow-[0_0_15px_rgba(220,38,38,0.5)]">
+                TRY AGAIN
+            </button>
+        </div>
+    </div>
 
-// --- 事件监听 ---
-
-document.addEventListener('keydown', event => {
-    if (isGameOver) return;
-    
-    // P键暂停
-    if (event.keyCode === 80) { 
-        togglePause();
-        return;
-    }
-    
-    if (isPaused) return;
-
-    if (event.keyCode === 37) { // Left
-        playerMove(-1);
-    } else if (event.keyCode === 39) { // Right
-        playerMove(1);
-    } else if (event.keyCode === 40) { // Down
-        playerDrop();
-    } else if (event.keyCode === 38) { // Up (Rotate)
-        playerRotate(1);
-    } else if (event.keyCode === 32) { // Space (Hard Drop)
-        playerHardDrop();
-    }
-});
-
-// 按钮控制
-document.getElementById('btn-left').addEventListener('click', () => !isPaused && !isGameOver && playerMove(-1));
-document.getElementById('btn-right').addEventListener('click', () => !isPaused && !isGameOver && playerMove(1));
-document.getElementById('btn-down').addEventListener('click', () => !isPaused && !isGameOver && playerDrop());
-document.getElementById('btn-rotate').addEventListener('click', () => !isPaused && !isGameOver && playerRotate(1));
-
-// 功能按钮
-document.getElementById('restart-btn').addEventListener('click', () => {
-    arena.forEach(row => row.fill(0));
-    player.score = 0;
-    player.lines = 0;
-    player.level = 1;
-    dropInterval = 1000;
-    updateScore();
-    isGameOver = false;
-    isPaused = false;
-    document.getElementById('overlay').classList.add('hidden');
-    playerReset();
-    update();
-});
-
-document.getElementById('pause-btn').addEventListener('click', togglePause);
-
-document.getElementById('sound-toggle').addEventListener('click', (e) => {
-    soundEnabled = !soundEnabled;
-    e.currentTarget.innerHTML = soundEnabled ? '<i class="fas fa-volume-up"></i>' : '<i class="fas fa-volume-mute"></i>';
-});
-
-function togglePause() {
-    if (isGameOver) return;
-    isPaused = !isPaused;
-    const btn = document.getElementById('pause-btn');
-    const overlay = document.getElementById('overlay');
-    const title = document.getElementById('overlay-title');
-    
-    if (isPaused) {
-        btn.innerHTML = '<i class="fas fa-play"></i> 继续';
-        overlay.classList.remove('hidden');
-        title.innerText = "PAUSED";
-        document.getElementById('final-score').innerText = "";
-        document.getElementById('restart-btn').classList.add('hidden'); // 暂停时不显示重开按钮，或者可以显示
-    } else {
-        btn.innerHTML = '<i class="fas fa-pause"></i> 暂停';
-        overlay.classList.add('hidden');
-        document.getElementById('restart-btn').classList.remove('hidden');
-        lastTime = performance.now(); // 重置时间防止跳帧
-        update();
-    }
-}
-
-// --- 初始化 ---
-function init() {
-    playerReset();
-    updateScore();
-    update();
-}
-
-init();
+    <script src="script.js"></script>
+</body>
+</html>
