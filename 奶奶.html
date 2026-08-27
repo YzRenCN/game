@@ -3,9 +3,8 @@
 <head>
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-    <title>🏚️ 恐怖老奶奶 - 3D逃生</title>
+    <title>🏮 古宅惊魂 · 恐怖老奶奶</title>
     <style>
-        /* ===== 全局重置 ===== */
         * {
             margin: 0;
             padding: 0;
@@ -14,46 +13,41 @@
         }
         body {
             overflow: hidden;
-            background: #000;
-            font-family: 'Segoe UI', Arial, sans-serif;
+            background: #1a0f0a;
+            font-family: 'Segoe UI', 'PingFang SC', Roboto, sans-serif;
             cursor: crosshair;
         }
         canvas {
             display: block;
         }
 
-        /* ===== UI 叠加层 ===== */
-        #ui-overlay {
+        #ui {
             position: fixed;
             top: 0;
             left: 0;
             width: 100%;
             height: 100%;
             pointer-events: none;
-            /* 默认不拦截点击，但某些子元素可点击 */;
+            z-index: 10;
         }
 
-        /* ---- 顶部信息 ---- */
         #hud {
             position: absolute;
             top: 20px;
             left: 50%;
             transform: translateX(-50%);
-            color: #fff;
-            font-size: 18px;
-            font-weight: 600;
-            text-shadow: 0 0 20px rgba(0, 0, 0, 0.9), 0 0 40px rgba(255, 0, 0, 0.3);
-            background: rgba(0, 0, 0, 0.6);
-            padding: 10px 28px;
-            border-radius: 40px;
-            border: 1px solid rgba(255, 255, 255, 0.15);
-            backdrop-filter: blur(6px);
-            letter-spacing: 1px;
             display: flex;
-            align-items: center;
-            gap: 18px;
+            gap: 24px;
+            background: rgba(0, 0, 0, 0.65);
+            padding: 8px 24px;
+            border-radius: 40px;
+            backdrop-filter: blur(8px);
+            border: 1px solid rgba(255, 200, 150, 0.15);
+            color: #f0e0d0;
+            font-size: 16px;
+            font-weight: 500;
             pointer-events: none;
-            z-index: 10;
+            box-shadow: 0 8px 40px rgba(0, 0, 0, 0.5);
         }
         #hud .item {
             display: flex;
@@ -61,79 +55,76 @@
             gap: 6px;
         }
         #hud .item .icon {
-            font-size: 22px;
+            font-size: 20px;
         }
         #hud .item .count {
-            font-size: 20px;
-            min-width: 24px;
-            text-align: center;
             color: #ffd700;
+            font-weight: 700;
+            min-width: 20px;
+            text-align: center;
         }
         #hud .status {
-            color: #aaa;
+            color: #bbb;
             font-size: 14px;
-            font-weight: 400;
-            border-left: 1px solid rgba(255, 255, 255, 0.2);
+            border-left: 1px solid rgba(255, 255, 255, 0.1);
             padding-left: 18px;
         }
+        #hud .status .highlight {
+            color: #ffd700;
+            font-weight: 600;
+        }
 
-        /* ---- 提示文字 ---- */
         #message {
             position: absolute;
-            bottom: 80px;
+            bottom: 100px;
             left: 50%;
             transform: translateX(-50%);
-            color: #fff;
-            font-size: 20px;
-            font-weight: 500;
-            text-shadow: 0 0 30px rgba(0, 0, 0, 0.9);
-            background: rgba(0, 0, 0, 0.55);
+            background: rgba(0, 0, 0, 0.7);
+            backdrop-filter: blur(6px);
             padding: 12px 30px;
             border-radius: 30px;
-            border: 1px solid rgba(255, 255, 255, 0.1);
-            backdrop-filter: blur(4px);
+            border: 1px solid rgba(255, 200, 150, 0.1);
+            color: #f0e0d0;
+            font-size: 18px;
+            font-weight: 500;
             pointer-events: none;
-            transition: opacity 0.5s ease, transform 0.5s ease;
+            transition: opacity 0.5s, transform 0.5s;
             opacity: 0;
-            transform: translateX(-50%) translateY(10px);
+            transform: translateX(-50%) translateY(12px);
             text-align: center;
             max-width: 80%;
-            z-index: 10;
+            box-shadow: 0 8px 40px rgba(0, 0, 0, 0.4);
         }
         #message.show {
             opacity: 1;
             transform: translateX(-50%) translateY(0);
         }
         #message.danger {
-            color: #ff6b6b;
-            border-color: rgba(255, 80, 80, 0.4);
-            box-shadow: 0 0 40px rgba(255, 0, 0, 0.15);
+            border-color: #ff4444;
+            color: #ff8888;
         }
         #message.success {
-            color: #69db7c;
-            border-color: rgba(80, 255, 80, 0.3);
+            border-color: #44ff88;
+            color: #88ffbb;
+        }
+        #message.info {
+            border-color: #44aaff;
+            color: #88ccff;
         }
 
-        /* ---- 中心准星 ---- */
         #crosshair {
             position: absolute;
             top: 50%;
             left: 50%;
             transform: translate(-50%, -50%);
-            color: rgba(255, 255, 255, 0.3);
-            font-size: 32px;
+            color: rgba(255, 255, 255, 0.2);
+            font-size: 28px;
             font-weight: 100;
             pointer-events: none;
-            z-index: 5;
-            text-shadow: 0 0 10px rgba(0, 0, 0, 0.5);
-            transition: color 0.3s;
-        }
-        #crosshair.active {
-            color: rgba(255, 200, 50, 0.7);
+            text-shadow: 0 0 20px rgba(0, 0, 0, 0.8);
         }
 
-        /* ---- 边缘红晕 (受伤/危险) ---- */
-        #danger-vignette {
+        #vignette {
             position: fixed;
             top: 0;
             left: 0;
@@ -141,21 +132,67 @@
             height: 100%;
             pointer-events: none;
             z-index: 4;
-            background: radial-gradient(ellipse at center, transparent 50%, rgba(255, 0, 0, 0) 80%);
-            transition: background 0.3s ease;
+            background: radial-gradient(ellipse at center, transparent 40%, rgba(80, 30, 20, 0.0) 100%);
+            transition: all 0.3s;
             opacity: 0;
         }
-        #danger-vignette.active {
+        #vignette.active {
             opacity: 1;
-            background: radial-gradient(ellipse at center, transparent 40%, rgba(180, 0, 0, 0.35) 80%);
+            background: radial-gradient(ellipse at center, transparent 30%, rgba(160, 40, 20, 0.35) 80%);
         }
-        #danger-vignette.caught {
+        #vignette.caught {
             opacity: 1;
             background: radial-gradient(ellipse at center, transparent 10%, rgba(200, 0, 0, 0.8) 90%);
-            transition: background 0.1s;
+            transition: 0.1s;
         }
 
-        /* ---- 开始 / 结束 画面 ---- */
+        #heartbeat {
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            pointer-events: none;
+            z-index: 3;
+            background: radial-gradient(ellipse at center, transparent 60%, rgba(180, 50, 30, 0.0) 100%);
+            opacity: 0;
+            transition: opacity 0.3s;
+        }
+        #heartbeat.pulse {
+            animation: pulse-red 0.5s ease-in-out infinite alternate;
+        }
+        @keyframes pulse-red {
+            0% {
+                opacity: 0.1;
+            }
+            100% {
+                opacity: 0.6;
+            }
+        }
+
+        #controls-hint {
+            position: absolute;
+            bottom: 30px;
+            right: 30px;
+            color: rgba(255, 255, 255, 0.2);
+            font-size: 13px;
+            text-align: right;
+            line-height: 1.6;
+            pointer-events: none;
+            font-weight: 300;
+            text-shadow: 0 0 20px rgba(0, 0, 0, 0.8);
+        }
+        #controls-hint kbd {
+            display: inline-block;
+            background: rgba(255, 255, 255, 0.06);
+            padding: 0 8px;
+            border-radius: 4px;
+            border: 1px solid rgba(255, 255, 255, 0.04);
+            font-size: 12px;
+            font-family: inherit;
+            color: rgba(255, 255, 255, 0.3);
+        }
+
         #overlay-screen {
             position: fixed;
             top: 0;
@@ -167,7 +204,7 @@
             align-items: center;
             justify-content: center;
             background: rgba(0, 0, 0, 0.85);
-            backdrop-filter: blur(12px);
+            backdrop-filter: blur(14px);
             z-index: 100;
             pointer-events: auto;
             transition: opacity 0.8s ease;
@@ -177,20 +214,20 @@
             pointer-events: none;
         }
         #overlay-screen h1 {
-            font-size: 64px;
+            font-size: 60px;
             font-weight: 900;
-            color: #fff;
-            text-shadow: 0 0 60px rgba(255, 0, 0, 0.5), 0 0 120px rgba(200, 0, 0, 0.2);
-            margin-bottom: 10px;
-            letter-spacing: 4px;
+            color: #f5d742;
+            text-shadow: 0 0 60px rgba(245, 215, 66, 0.3);
+            margin-bottom: 6px;
+            letter-spacing: 6px;
         }
         #overlay-screen .sub {
-            font-size: 20px;
-            color: #aaa;
-            margin-bottom: 30px;
+            font-size: 18px;
+            color: #ccc;
+            margin-bottom: 24px;
             text-align: center;
-            max-width: 500px;
-            line-height: 1.6;
+            max-width: 540px;
+            line-height: 1.7;
         }
         #overlay-screen .sub strong {
             color: #ff6b6b;
@@ -199,99 +236,48 @@
             padding: 16px 48px;
             font-size: 20px;
             font-weight: 700;
-            color: #fff;
-            background: linear-gradient(135deg, #c0392b, #e74c3c);
+            color: #1a0f0a;
+            background: linear-gradient(135deg, #f5d742, #e6b800);
             border: none;
             border-radius: 50px;
             cursor: pointer;
             pointer-events: auto;
             transition: transform 0.2s, box-shadow 0.2s;
-            box-shadow: 0 8px 30px rgba(200, 0, 0, 0.3);
+            box-shadow: 0 8px 30px rgba(245, 215, 66, 0.25);
             letter-spacing: 1px;
         }
         #overlay-screen .btn:hover {
             transform: scale(1.05);
-            box-shadow: 0 12px 40px rgba(200, 0, 0, 0.5);
-        }
-        #overlay-screen .btn:active {
-            transform: scale(0.95);
+            box-shadow: 0 12px 40px rgba(245, 215, 66, 0.4);
         }
         #overlay-screen .btn-secondary {
-            background: linear-gradient(135deg, #2d3436, #636e72);
+            background: linear-gradient(135deg, #5a3a2a, #3d2a1a);
+            color: #f0e0d0;
             box-shadow: 0 8px 30px rgba(0, 0, 0, 0.5);
-            margin-top: 12px;
-        }
-        #overlay-screen .btn-secondary:hover {
-            box-shadow: 0 12px 40px rgba(0, 0, 0, 0.7);
+            margin-top: 10px;
         }
         #overlay-screen .result-icon {
-            font-size: 80px;
-            margin-bottom: 10px;
+            font-size: 72px;
+            margin-bottom: 8px;
         }
         #overlay-screen .result-detail {
             color: #888;
-            font-size: 16px;
-            margin-top: 8px;
+            font-size: 15px;
+            margin-top: 6px;
+        }
+        #overlay-screen .end-buttons {
+            display: flex;
+            gap: 16px;
+            margin-top: 10px;
+            flex-wrap: wrap;
+            justify-content: center;
         }
 
-        /* ---- 控制提示 ---- */
-        #controls-hint {
-            position: absolute;
-            bottom: 30px;
-            right: 30px;
-            color: rgba(255, 255, 255, 0.2);
-            font-size: 13px;
-            text-align: right;
-            line-height: 1.6;
-            letter-spacing: 0.5px;
-            pointer-events: none;
-            z-index: 2;
-            font-weight: 300;
-            text-shadow: 0 0 20px rgba(0, 0, 0, 0.8);
-        }
-        #controls-hint kbd {
-            display: inline-block;
-            background: rgba(255, 255, 255, 0.08);
-            padding: 0 8px;
-            border-radius: 4px;
-            border: 1px solid rgba(255, 255, 255, 0.06);
-            font-size: 12px;
-            font-family: inherit;
-            color: rgba(255, 255, 255, 0.3);
-        }
-
-        /* ---- 老奶奶接近警告 ---- */
-        #heartbeat {
-            position: fixed;
-            top: 0;
-            left: 0;
-            width: 100%;
-            height: 100%;
-            pointer-events: none;
-            z-index: 3;
-            background: radial-gradient(ellipse at center, transparent 60%, rgba(180, 0, 0, 0.08) 100%);
-            opacity: 0;
-            transition: opacity 0.3s;
-            animation: none;
-        }
-        #heartbeat.pulse {
-            animation: pulse-red 0.6s ease-in-out infinite alternate;
-        }
-        @keyframes pulse-red {
-            0% {
-                opacity: 0.2;
-            }
-            100% {
-                opacity: 0.7;
-            }
-        }
-
-        /* 响应式 */
         @media (max-width: 600px) {
             #hud {
-                font-size: 14px;
-                padding: 6px 16px;
-                gap: 10px;
+                font-size: 13px;
+                padding: 6px 14px;
+                gap: 12px;
                 top: 12px;
                 flex-wrap: wrap;
                 justify-content: center;
@@ -304,17 +290,17 @@
                 font-size: 36px;
             }
             #overlay-screen .sub {
-                font-size: 16px;
-                padding: 0 20px;
+                font-size: 15px;
+                padding: 0 16px;
             }
             #overlay-screen .btn {
-                padding: 12px 32px;
+                padding: 12px 28px;
                 font-size: 16px;
             }
             #message {
-                font-size: 16px;
-                padding: 10px 20px;
-                bottom: 60px;
+                font-size: 15px;
+                padding: 8px 18px;
+                bottom: 70px;
                 max-width: 90%;
             }
             #controls-hint {
@@ -325,51 +311,37 @@
 </head>
 <body>
 
-    <!-- ===== UI 层 ===== -->
-    <div id="ui-overlay">
-        <!-- HUD -->
+    <div id="ui">
         <div id="hud">
-            <span class="item">
-                <span class="icon">🔑</span>
-                <span class="count" id="key-count">0</span>
-                <span style="color:#666;font-weight:300;">/ 3</span>
-            </span>
-            <span class="status" id="hud-status">🔍 寻找钥匙...</span>
+            <span class="item"><span class="icon">🔑</span><span class="count" id="key-count">0</span>/3</span>
+            <span class="item"><span class="icon">📜</span><span class="count" id="scroll-count">0</span>/1</span>
+            <span class="item"><span class="icon">🧿</span><span class="count" id="talisman-count">0</span>/1</span>
+            <span class="status" id="hud-status">🔍 探索古宅</span>
         </div>
 
-        <!-- 消息提示 -->
         <div id="message"></div>
-
-        <!-- 准星 -->
         <div id="crosshair">✚</div>
-
-        <!-- 危险红晕 -->
-        <div id="danger-vignette"></div>
-
-        <!-- 心跳效果 -->
+        <div id="vignette"></div>
         <div id="heartbeat"></div>
-
-        <!-- 控制提示 -->
         <div id="controls-hint">
-            <kbd>W</kbd> <kbd>A</kbd> <kbd>S</kbd> <kbd>D</kbd> 移动 &nbsp;·&nbsp; <kbd>鼠标</kbd> 视角<br />
-            收集 3 把钥匙，找到出口逃离！
+            <kbd>W</kbd><kbd>A</kbd><kbd>S</kbd><kbd>D</kbd> 移动 &nbsp;·&nbsp; <kbd>鼠标</kbd> 视角<br />
+            收集钥匙(3)逃出 · 符咒封印 · 遗物超度
         </div>
     </div>
 
-    <!-- ===== 开始 / 结束 屏幕 ===== -->
     <div id="overlay-screen">
-        <div class="result-icon" id="result-icon">🏚️</div>
-        <h1 id="title-text">恐怖老奶奶</h1>
+        <div class="result-icon" id="result-icon">🏮</div>
+        <h1 id="title-text">古宅惊魂</h1>
         <div class="sub" id="sub-text">
-            你被困在一座阴森的宅邸里。<br />
-            收集 <strong>3 把金色钥匙</strong>，找到出口逃生。<br />
-            小心！老奶奶在黑暗中游荡...
+            你踏入了一座荒废百年的中式古宅。<br />
+            收集 <strong>3把钥匙</strong> 打开大门逃离，或寻找 <strong>符咒</strong> 封印老奶奶，<br />
+            也可找到她的 <strong>遗物</strong> 让其安息。<br />
+            小心！她在暗处注视着你...
         </div>
-        <button class="btn" id="main-btn">开始游戏</button>
+        <button class="btn" id="main-btn">开始探险</button>
         <div class="result-detail" id="result-detail"></div>
     </div>
 
-    <!-- ===== Three.js 入口 ===== -->
     <script type="importmap">
         {
             "imports": {
@@ -381,7 +353,7 @@
 
     <script type="module">
         // ============================================================
-        //  模块导入
+        //  导入
         // ============================================================
         import * as THREE from 'three';
         import { PointerLockControls } from 'three/addons/controls/PointerLockControls.js';
@@ -389,45 +361,47 @@
         // ============================================================
         //  DOM 引用
         // ============================================================
-        const overlayScreen = document.getElementById('overlay-screen');
+        const overlay = document.getElementById('overlay-screen');
         const titleText = document.getElementById('title-text');
         const subText = document.getElementById('sub-text');
         const resultIcon = document.getElementById('result-icon');
         const mainBtn = document.getElementById('main-btn');
         const resultDetail = document.getElementById('result-detail');
         const keyCountEl = document.getElementById('key-count');
+        const scrollCountEl = document.getElementById('scroll-count');
+        const talismanCountEl = document.getElementById('talisman-count');
         const hudStatus = document.getElementById('hud-status');
-        const messageEl = document.getElementById('message');
-        const dangerVignette = document.getElementById('danger-vignette');
-        const heartbeatEl = document.getElementById('heartbeat');
-        const crosshair = document.getElementById('crosshair');
+        const msgEl = document.getElementById('message');
+        const vignette = document.getElementById('vignette');
+        const heartbeat = document.getElementById('heartbeat');
 
         // ============================================================
         //  游戏状态
         // ============================================================
-        const STATE = {
-            MENU: 0,
-            PLAYING: 1,
-            CAUGHT: 2,
-            WIN: 3,
-        };
-
+        const STATE = { MENU: 0, PLAYING: 1, ENDED: 2 };
         let gameState = STATE.MENU;
-        let keysCollected = 0;
-        const MAX_KEYS = 3;
         let isGameOver = false;
         let gameTime = 0;
-        let grannyAlertLevel = 0; // 0-1
+
+        // 收集物
+        let keysCollected = 0;
+        const MAX_KEYS = 3;
+        let hasScroll = false; // 遗物
+        let hasTalisman = false; // 符咒
+        let itemsCollected = { keys: 0, scroll: false, talisman: false };
+
+        // 老奶奶
+        let grannyAlert = 0;
 
         // ============================================================
-        //  Three.js 基础设置
+        //  Three.js 设置
         // ============================================================
         const scene = new THREE.Scene();
-        scene.background = new THREE.Color(0x0a0a0a);
-        scene.fog = new THREE.Fog(0x0a0a0a, 18, 40);
+        scene.background = new THREE.Color(0x1a0f0a);
+        scene.fog = new THREE.Fog(0x1a0f0a, 20, 45);
 
-        const camera = new THREE.PerspectiveCamera(72, window.innerWidth / window.innerHeight, 0.1, 60);
-        camera.position.set(0, 1.6, 0);
+        const camera = new THREE.PerspectiveCamera(68, window.innerWidth / window.innerHeight, 0.1, 60);
+        camera.position.set(0, 1.7, 0);
 
         const renderer = new THREE.WebGLRenderer({ antialias: true });
         renderer.setSize(window.innerWidth, window.innerHeight);
@@ -438,85 +412,98 @@
         renderer.toneMappingExposure = 1.2;
         document.body.prepend(renderer.domElement);
 
-        // ============================================================
-        //  控制器
-        // ============================================================
+        // 控制器
         const controls = new PointerLockControls(camera, document.body);
 
         // ============================================================
-        //  灯光
+        //  灯光 (亮度提升)
         // ============================================================
-        // 环境光 - 极暗
-        const ambientLight = new THREE.AmbientLight(0x222233, 0.15);
-        scene.add(ambientLight);
+        // 环境光 - 暖色，更亮
+        const ambient = new THREE.AmbientLight(0xccaa88, 0.45);
+        scene.add(ambient);
 
-        // 主月光 - 冷色
-        const moonLight = new THREE.DirectionalLight(0x4466aa, 0.4);
-        moonLight.position.set(-15, 25, 10);
-        moonLight.castShadow = true;
-        moonLight.shadow.mapSize.width = 1024;
-        moonLight.shadow.mapSize.height = 1024;
-        moonLight.shadow.camera.near = 0.5;
-        moonLight.shadow.camera.far = 60;
-        moonLight.shadow.camera.left = -25;
-        moonLight.shadow.camera.right = 25;
-        moonLight.shadow.camera.top = 25;
-        moonLight.shadow.camera.bottom = -25;
-        scene.add(moonLight);
+        // 主光源 - 模拟月光透过窗
+        const moon = new THREE.DirectionalLight(0xaaccff, 0.6);
+        moon.position.set(-8, 15, 6);
+        moon.castShadow = true;
+        moon.shadow.mapSize.width = 2048;
+        moon.shadow.mapSize.height = 2048;
+        moon.shadow.camera.near = 0.5;
+        moon.shadow.camera.far = 50;
+        moon.shadow.camera.left = -20;
+        moon.shadow.camera.right = 20;
+        moon.shadow.camera.top = 20;
+        moon.shadow.camera.bottom = -20;
+        scene.add(moon);
 
-        // 点光源 - 营造氛围 (闪烁)
-        const flickerLight = new THREE.PointLight(0xff6633, 0.8, 20);
-        flickerLight.position.set(5, 3.5, -5);
-        scene.add(flickerLight);
+        // 多个灯笼点光源 (暖色)
+        const lanternPositions = [
+            [-6, 3.0, -4],
+            [7, 3.2, 5],
+            [-5, 3.5, 9],
+            [9, 3.0, -6],
+            [-8, 2.8, -8],
+            [0, 4.0, -2],
+        ];
+        const lanternLights = [];
+        lanternPositions.forEach((pos) => {
+            const light = new THREE.PointLight(0xff8844, 0.9, 12);
+            light.position.set(pos[0], pos[1], pos[2]);
+            light.castShadow = false;
+            scene.add(light);
+            lanternLights.push(light);
+            // 添加视觉灯笼球
+            const sphere = new THREE.Mesh(
+                new THREE.SphereGeometry(0.2, 8, 8),
+                new THREE.MeshBasicMaterial({ color: 0xff8844, transparent: true, opacity: 0.3 })
+            );
+            sphere.position.copy(light.position);
+            scene.add(sphere);
+        });
 
-        const flickerLight2 = new THREE.PointLight(0x3366ff, 0.3, 15);
-        flickerLight2.position.set(-6, 3, 8);
-        scene.add(flickerLight2);
-
-        // 手电筒光 (跟随玩家)
-        const flashlight = new THREE.SpotLight(0xffeedd, 1.8, 16, Math.PI / 5, 0.6, 1.5);
+        // 玩家手电筒 (增强)
+        const flashlight = new THREE.SpotLight(0xffeedd, 2.2, 18, Math.PI / 5, 0.5, 1.8);
         flashlight.position.set(0, 1.6, 0);
-        flashlight.target.position.set(0, 0, -5);
+        flashlight.target.position.set(0, 0, -6);
         flashlight.castShadow = false;
         scene.add(flashlight);
         scene.add(flashlight.target);
 
+        // 额外补光
+        const fill = new THREE.DirectionalLight(0xffaa66, 0.2);
+        fill.position.set(0, 5, 10);
+        scene.add(fill);
+
         // ============================================================
-        //  房间构建
+        //  古宅场景构建
         // ============================================================
-        const ROOM_SIZE = 38;
-        const WALL_HEIGHT = 4.5;
+        const ROOM_SIZE = 30;
+        const WALL_HEIGHT = 4.8;
         const FLOOR_Y = 0;
 
-        // --- 地面 ---
-        const floorGeo = new THREE.PlaneGeometry(ROOM_SIZE, ROOM_SIZE);
+        // ---- 地板 (木纹色) ----
         const floorMat = new THREE.MeshStandardMaterial({
-            color: 0x2a1f1a,
-            roughness: 0.9,
+            color: 0x4a3222,
+            roughness: 0.8,
             metalness: 0.0,
-            side: THREE.DoubleSide,
         });
-        const floor = new THREE.Mesh(floorGeo, floorMat);
+        const floor = new THREE.Mesh(new THREE.PlaneGeometry(ROOM_SIZE, ROOM_SIZE), floorMat);
         floor.rotation.x = -Math.PI / 2;
         floor.position.y = FLOOR_Y;
         floor.receiveShadow = true;
         scene.add(floor);
 
-        // 地面纹理细节 - 网格线 (增加视觉参考)
-        const gridHelper = new THREE.GridHelper(ROOM_SIZE, 20, 0x44332a, 0x33221a);
-        gridHelper.position.y = FLOOR_Y + 0.02;
-        gridHelper.material.transparent = true;
-        gridHelper.material.opacity = 0.3;
-        scene.add(gridHelper);
+        // 地板格子装饰
+        const grid = new THREE.GridHelper(ROOM_SIZE, 24, 0x6a4a32, 0x3d2a1a);
+        grid.position.y = FLOOR_Y + 0.02;
+        grid.material.transparent = true;
+        grid.material.opacity = 0.15;
+        scene.add(grid);
 
-        // --- 墙壁 ---
-        function createWall(w, h, posX, posY, posZ, rotY = 0, color = 0x3d2e26) {
-            const geo = new THREE.BoxGeometry(w, h, 0.3);
-            const mat = new THREE.MeshStandardMaterial({
-                color: color,
-                roughness: 0.85,
-                metalness: 0.0,
-            });
+        // ---- 墙壁 (中式风格) ----
+        function createWall(w, h, posX, posY, posZ, rotY = 0, color = 0x5a3a2a) {
+            const geo = new THREE.BoxGeometry(w, h, 0.25);
+            const mat = new THREE.MeshStandardMaterial({ color, roughness: 0.9, metalness: 0.0 });
             const mesh = new THREE.Mesh(geo, mat);
             mesh.position.set(posX, posY + h / 2, posZ);
             mesh.rotation.y = rotY;
@@ -526,91 +513,79 @@
             return mesh;
         }
 
-        // 外墙壁 - 用薄片围成
-        const wallColor = 0x3d2e26;
-        const wallColorDark = 0x2d1f18;
-
-        // 四面的主墙 (使用多个段以便开窗)
         const half = ROOM_SIZE / 2;
+        const wallColor = 0x5a3a2a;
+        const wallDark = 0x3d2a1a;
 
-        // 后墙 (Z负)
+        // 外壁
         createWall(ROOM_SIZE, WALL_HEIGHT, 0, 0, -half, 0, wallColor);
-        // 前墙 (Z正) - 留出口位置
         createWall(ROOM_SIZE, WALL_HEIGHT, 0, 0, half, 0, wallColor);
-        // 左墙 (X负)
         createWall(ROOM_SIZE, WALL_HEIGHT, -half, 0, 0, 0, wallColor);
-        // 右墙 (X正)
         createWall(ROOM_SIZE, WALL_HEIGHT, half, 0, 0, 0, wallColor);
 
-        // --- 天花板 (半透明, 增加压迫感) ---
-        const ceilMat = new THREE.MeshStandardMaterial({
-            color: 0x1a1410,
-            roughness: 1,
-            metalness: 0,
-            transparent: true,
-            opacity: 0.6,
-            side: THREE.DoubleSide,
-        });
-        const ceil = new THREE.Mesh(new THREE.PlaneGeometry(ROOM_SIZE - 0.5, ROOM_SIZE - 0.5), ceilMat);
-        ceil.rotation.x = Math.PI / 2;
-        ceil.position.y = WALL_HEIGHT;
-        scene.add(ceil);
+        // 内墙 - 形成回廊和房间
+        // 横向隔断 (z=0附近)
+        createWall(18, WALL_HEIGHT, -2, 0, 0, 0, wallDark);
+        createWall(18, WALL_HEIGHT, 8, 0, 0, 0, wallDark);
+        // 纵向隔断
+        createWall(12, WALL_HEIGHT, -6, 0, -4, 0, wallDark);
+        createWall(12, WALL_HEIGHT, 6, 0, 4, 0, wallDark);
+        createWall(10, WALL_HEIGHT, -6, 0, 6, 0, wallDark);
+        createWall(10, WALL_HEIGHT, 6, 0, -6, 0, wallDark);
 
-        // --- 内部隔断: 形成走廊和房间 ---
-
-        // 中间横墙 (从左到右, 在Z=0附近)
-        createWall(16, WALL_HEIGHT, -4, 0, 0, 0, wallColorDark);
-        // 竖墙 (从横墙到前墙)
-        createWall(10, WALL_HEIGHT, 4, 0, 5, 0, wallColorDark);
-        // 另一个竖墙
-        createWall(10, WALL_HEIGHT, -4, 0, -5, 0, wallColorDark);
-
-        // 一些柱子 (障碍物)
+        // 支柱 (圆木柱)
         function createPillar(x, z) {
-            const geo = new THREE.CylinderGeometry(0.4, 0.5, WALL_HEIGHT, 8);
-            const mat = new THREE.MeshStandardMaterial({ color: 0x4a3a30, roughness: 0.9 });
+            const geo = new THREE.CylinderGeometry(0.35, 0.45, WALL_HEIGHT, 10);
+            const mat = new THREE.MeshStandardMaterial({ color: 0x4a3222, roughness: 0.9 });
             const p = new THREE.Mesh(geo, mat);
             p.position.set(x, WALL_HEIGHT / 2, z);
             p.castShadow = true;
             p.receiveShadow = true;
             scene.add(p);
+            // 柱础
+            const base = new THREE.Mesh(
+                new THREE.CylinderGeometry(0.5, 0.6, 0.15, 10),
+                new THREE.MeshStandardMaterial({ color: 0x3d2a1a, roughness: 0.9 })
+            );
+            base.position.set(x, 0.08, z);
+            scene.add(base);
             return p;
         }
-        const pillarPositions = [
+        const pillarPos = [
             [-8, -8],
             [-8, 8],
             [8, -8],
             [8, 8],
-            [-12, 0],
-            [12, 0],
-            [0, -12],
-            [0, 12]
+            [-12, -4],
+            [-12, 4],
+            [12, -4],
+            [12, 4],
+            [-4, -12],
+            [4, -12],
+            [-4, 12],
+            [4, 12]
         ];
-        pillarPositions.forEach(([x, z]) => createPillar(x, z));
+        pillarPos.forEach(([x, z]) => createPillar(x, z));
 
-        // --- 家具: 桌子 ---
+        // ---- 中式家具 ----
         function createTable(x, z, rot = 0) {
             const group = new THREE.Group();
-            // 桌面
-            const top = new THREE.Mesh(
-                new THREE.BoxGeometry(1.8, 0.15, 1.2),
-                new THREE.MeshStandardMaterial({ color: 0x5a4030, roughness: 0.8 })
-            );
-            top.position.y = 0.8;
+            const topMat = new THREE.MeshStandardMaterial({ color: 0x5a3a2a, roughness: 0.7 });
+            const legMat = new THREE.MeshStandardMaterial({ color: 0x3d2a1a, roughness: 0.9 });
+            const top = new THREE.Mesh(new THREE.BoxGeometry(1.6, 0.12, 1.0), topMat);
+            top.position.y = 0.7;
             top.castShadow = true;
             top.receiveShadow = true;
             group.add(top);
-            // 四条腿
-            const legMat = new THREE.MeshStandardMaterial({ color: 0x3d2e26, roughness: 0.9 });
             const legPos = [
-                [-0.7, -0.4],
-                [0.7, -0.4],
-                [-0.7, 0.4],
-                [0.7, 0.4]
+                [-0.6, -0.35],
+                [0.6, -0.35],
+                [-0.6, 0.35],
+                [0.6, 0.35]
             ];
             legPos.forEach(([lx, lz]) => {
-                const leg = new THREE.Mesh(new THREE.CylinderGeometry(0.08, 0.08, 0.7, 6), legMat);
-                leg.position.set(lx, 0.35, lz);
+                const leg = new THREE.Mesh(new THREE.CylinderGeometry(0.06, 0.08, 0.6, 6), legMat);
+                leg.position.set(lx, 0.3, lz);
                 leg.castShadow = true;
                 group.add(leg);
             });
@@ -620,62 +595,167 @@
             return group;
         }
 
-        createTable(-6, -6, 0.3);
-        createTable(7, 5, -0.5);
-        createTable(-7, 8, 0.8);
-        createTable(9, -7, 1.2);
-
-        // --- 柜子 ---
         function createCabinet(x, z, rot = 0) {
-            const g = new THREE.Group();
-            const body = new THREE.Mesh(
-                new THREE.BoxGeometry(1.2, 1.6, 0.6),
-                new THREE.MeshStandardMaterial({ color: 0x4a3528, roughness: 0.9 })
-            );
-            body.position.y = 0.8;
+            const group = new THREE.Group();
+            const bodyMat = new THREE.MeshStandardMaterial({ color: 0x4a3222, roughness: 0.8 });
+            const body = new THREE.Mesh(new THREE.BoxGeometry(1.0, 1.4, 0.5), bodyMat);
+            body.position.y = 0.7;
             body.castShadow = true;
             body.receiveShadow = true;
-            g.add(body);
+            group.add(body);
             // 门把手
-            const handle = new THREE.Mesh(
-                new THREE.SphereGeometry(0.06, 6, 6),
-                new THREE.MeshStandardMaterial({ color: 0xccaa66, metalness: 0.6, roughness: 0.3 })
-            );
-            handle.position.set(0.4, 0.8, 0.35);
-            g.add(handle);
-            g.position.set(x, FLOOR_Y, z);
-            g.rotation.y = rot;
-            scene.add(g);
-            return g;
+            const handleMat = new THREE.MeshStandardMaterial({ color: 0xccaa66, metalness: 0.5, roughness: 0.3 });
+            const handle = new THREE.Mesh(new THREE.SphereGeometry(0.05, 6, 6), handleMat);
+            handle.position.set(0.35, 0.7, 0.28);
+            group.add(handle);
+            group.position.set(x, FLOOR_Y, z);
+            group.rotation.y = rot;
+            scene.add(group);
+            return group;
         }
-        createCabinet(-10, -4, 0.2);
-        createCabinet(10, 4, -0.3);
+
+        function createChair(x, z, rot = 0) {
+            const group = new THREE.Group();
+            const mat = new THREE.MeshStandardMaterial({ color: 0x4a3222, roughness: 0.8 });
+            const seat = new THREE.Mesh(new THREE.BoxGeometry(0.6, 0.08, 0.6), mat);
+            seat.position.y = 0.4;
+            seat.castShadow = true;
+            group.add(seat);
+            const legPos = [
+                [-0.25, -0.25],
+                [0.25, -0.25],
+                [-0.25, 0.25],
+                [0.25, 0.25]
+            ];
+            legPos.forEach(([lx, lz]) => {
+                const leg = new THREE.Mesh(new THREE.CylinderGeometry(0.04, 0.05, 0.35, 6), mat);
+                leg.position.set(lx, 0.18, lz);
+                group.add(leg);
+            });
+            // 靠背
+            const back = new THREE.Mesh(new THREE.BoxGeometry(0.6, 0.5, 0.04), mat);
+            back.position.set(0, 0.65, -0.3);
+            group.add(back);
+            group.position.set(x, FLOOR_Y, z);
+            group.rotation.y = rot;
+            scene.add(group);
+            return group;
+        }
+
+        // 放置家具
+        createTable(-6, -5, 0.2);
+        createTable(7, 6, -0.4);
+        createTable(-7, 9, 0.6);
+        createTable(9, -7, 1.2);
+        createCabinet(-10, -4, 0.3);
+        createCabinet(10, 4, -0.2);
         createCabinet(-3, 12, 0.5);
+        createChair(-5, -3, 0.8);
+        createChair(5, 7, -0.6);
+        createChair(-8, 7, 0.2);
+        createChair(8, -5, -0.3);
 
-        // --- 出口门 (在Z正方向) ---
+        // ---- 屏风 (装饰) ----
+        function createScreen(x, z, rot = 0) {
+            const group = new THREE.Group();
+            const frameMat = new THREE.MeshStandardMaterial({ color: 0x3d2a1a, roughness: 0.9 });
+            const panelMat = new THREE.MeshStandardMaterial({ color: 0x8a6a4a, roughness: 0.7, transparent: true,
+                opacity: 0.6 });
+            for (let i = -1; i <= 1; i++) {
+                const panel = new THREE.Mesh(new THREE.BoxGeometry(0.6, 1.8, 0.04), panelMat);
+                panel.position.set(i * 0.65, 0.9, 0);
+                panel.castShadow = true;
+                group.add(panel);
+                // 边框
+                const frame = new THREE.Mesh(new THREE.BoxGeometry(0.62, 1.82, 0.06), frameMat);
+                frame.position.set(i * 0.65, 0.9, 0);
+                group.add(frame);
+            }
+            group.position.set(x, FLOOR_Y, z);
+            group.rotation.y = rot;
+            scene.add(group);
+            return group;
+        }
+        createScreen(-8, -2, 0.8);
+        createScreen(8, 2, -0.5);
+
+        // ---- 字画 (装饰) ----
+        function createScroll(x, y, z, rotY = 0) {
+            const group = new THREE.Group();
+            const mat = new THREE.MeshStandardMaterial({ color: 0xf5e6c8, roughness: 0.8, side: THREE.DoubleSide });
+            const paper = new THREE.Mesh(new THREE.PlaneGeometry(0.8, 1.2), mat);
+            paper.position.set(0, 0, 0);
+            paper.castShadow = false;
+            group.add(paper);
+            // 轴
+            const axisMat = new THREE.MeshStandardMaterial({ color: 0x3d2a1a, roughness: 0.9 });
+            const topAxis = new THREE.Mesh(new THREE.CylinderGeometry(0.03, 0.03, 0.9, 6), axisMat);
+            topAxis.rotation.x = Math.PI / 2;
+            topAxis.position.set(0, 0.6, 0);
+            group.add(topAxis);
+            const bottomAxis = new THREE.Mesh(new THREE.CylinderGeometry(0.03, 0.03, 0.9, 6), axisMat);
+            bottomAxis.rotation.x = Math.PI / 2;
+            bottomAxis.position.set(0, -0.6, 0);
+            group.add(bottomAxis);
+            group.position.set(x, y, z);
+            group.rotation.y = rotY;
+            scene.add(group);
+            return group;
+        }
+        createScroll(-4, 2.8, -half + 0.2, 0);
+        createScroll(4, 2.8, -half + 0.2, 0);
+        createScroll(-3, 2.8, half - 0.2, Math.PI);
+        createScroll(3, 2.8, half - 0.2, Math.PI);
+
+        // ---- 灯笼 (发光) ----
+        function createLantern(x, y, z) {
+            const group = new THREE.Group();
+            const mat = new THREE.MeshStandardMaterial({
+                color: 0xff8844,
+                emissive: 0xff4400,
+                emissiveIntensity: 0.3,
+                transparent: true,
+                opacity: 0.7,
+            });
+            const body = new THREE.Mesh(new THREE.SphereGeometry(0.25, 8, 8), mat);
+            body.position.y = 0;
+            group.add(body);
+            const string = new THREE.Mesh(
+                new THREE.CylinderGeometry(0.01, 0.01, 0.3, 4),
+                new THREE.MeshStandardMaterial({ color: 0x333 })
+            );
+            string.position.y = 0.4;
+            group.add(string);
+            group.position.set(x, y, z);
+            scene.add(group);
+            return group;
+        }
+        createLantern(-6, 3.0, -4);
+        createLantern(7, 3.2, 5);
+        createLantern(-5, 3.5, 9);
+        createLantern(9, 3.0, -6);
+        createLantern(-8, 2.8, -8);
+        createLantern(0, 4.0, -2);
+
+        // ---- 出口大门 (中式) ----
         const doorGroup = new THREE.Group();
-        const doorFrame = new THREE.Mesh(
-            new THREE.BoxGeometry(2.2, 3.2, 0.4),
-            new THREE.MeshStandardMaterial({ color: 0x2a1f1a, roughness: 0.9 })
-        );
-        doorFrame.position.y = 1.6;
-        doorFrame.castShadow = true;
-        doorGroup.add(doorFrame);
-
+        const frameMat = new THREE.MeshStandardMaterial({ color: 0x3d2a1a, roughness: 0.9 });
+        const doorMat = new THREE.MeshStandardMaterial({ color: 0x6a4a32, roughness: 0.7 });
+        // 门框
+        const frameH = new THREE.Mesh(new THREE.BoxGeometry(2.6, 3.6, 0.3), frameMat);
+        frameH.position.y = 1.8;
+        doorGroup.add(frameH);
         // 门板
-        const doorMat = new THREE.MeshStandardMaterial({
-            color: 0x5a3d2e,
-            roughness: 0.7,
-            metalness: 0.1,
-            transparent: true,
-            opacity: 1,
-        });
-        const doorPanel = new THREE.Mesh(new THREE.BoxGeometry(1.8, 2.8, 0.08), doorMat);
-        doorPanel.position.set(0, 1.6, 0.22);
+        const doorPanel = new THREE.Mesh(new THREE.BoxGeometry(2.0, 3.0, 0.08), doorMat);
+        doorPanel.position.set(0, 1.8, 0.2);
         doorPanel.castShadow = true;
         doorGroup.add(doorPanel);
-
-        // 门发光边框 (收集完钥匙后亮起)
+        // 门环
+        const ringMat = new THREE.MeshStandardMaterial({ color: 0xccaa66, metalness: 0.6, roughness: 0.3 });
+        const ring = new THREE.Mesh(new THREE.TorusGeometry(0.08, 0.025, 8, 12), ringMat);
+        ring.position.set(0.7, 1.8, 0.35);
+        doorGroup.add(ring);
+        // 发光边框 (收集完钥匙后亮起)
         const glowMat = new THREE.MeshStandardMaterial({
             color: 0xffd700,
             emissive: 0xffd700,
@@ -684,248 +764,255 @@
             opacity: 0.3,
             side: THREE.DoubleSide,
         });
-        const glowFrame = new THREE.Mesh(new THREE.BoxGeometry(2.4, 3.4, 0.1), glowMat);
-        glowFrame.position.set(0, 1.6, 0.28);
+        const glowFrame = new THREE.Mesh(new THREE.BoxGeometry(2.8, 3.8, 0.1), glowMat);
+        glowFrame.position.set(0, 1.8, 0.32);
         doorGroup.add(glowFrame);
 
         doorGroup.position.set(0, FLOOR_Y, half - 0.5);
         scene.add(doorGroup);
-
-        // 保存引用
         const doorGlow = glowFrame;
         const doorPanelMesh = doorPanel;
 
         // ============================================================
-        //  收集品: 金色钥匙 (漂浮旋转)
+        //  收集物品 (3把钥匙 + 遗物 + 符咒)
         // ============================================================
-        const keyPositions = [
-            [-9, 1.2, -7],
-            [7, 1.2, 8],
-            [-5, 1.2, 11],
-        ];
-        const keys = [];
+        const itemPositions = {
+            keys: [
+                [-9, 1.2, -6],
+                [8, 1.2, 7],
+                [-4, 1.2, 11]
+            ],
+            scroll: [-2, 1.0, -9], // 遗物
+            talisman: [6, 1.0, -8], // 符咒
+        };
 
-        function createKey(x, y, z) {
+        const keyMeshes = [];
+        const scrollMesh = null;
+        const talismanMesh = null;
+
+        function createItem(type, x, y, z) {
             const group = new THREE.Group();
-
-            // 主体
-            const body = new THREE.Mesh(
-                new THREE.TorusGeometry(0.3, 0.08, 8, 12),
-                new THREE.MeshStandardMaterial({
-                    color: 0xffd700,
-                    metalness: 0.8,
-                    roughness: 0.2,
-                    emissive: 0xffaa00,
-                    emissiveIntensity: 0.15,
-                })
-            );
-            body.rotation.x = Math.PI / 2;
-            body.position.y = 0;
-            group.add(body);
-
-            // 柄
-            const stem = new THREE.Mesh(
-                new THREE.BoxGeometry(0.08, 0.35, 0.08),
-                new THREE.MeshStandardMaterial({
-                    color: 0xffd700,
-                    metalness: 0.8,
-                    roughness: 0.2,
-                })
-            );
-            stem.position.set(0, 0.25, 0);
-            group.add(stem);
-
-            // 光环
-            const glow = new THREE.Mesh(
-                new THREE.SphereGeometry(0.5, 8, 8),
-                new THREE.MeshBasicMaterial({
-                    color: 0xffd700,
-                    transparent: true,
-                    opacity: 0.08,
-                })
-            );
-            group.add(glow);
-
+            if (type === 'key') {
+                // 金色钥匙
+                const body = new THREE.Mesh(
+                    new THREE.TorusGeometry(0.25, 0.06, 8, 12),
+                    new THREE.MeshStandardMaterial({ color: 0xffd700, metalness: 0.8, roughness: 0.2,
+                        emissive: 0xffaa00, emissiveIntensity: 0.1 })
+                );
+                body.rotation.x = Math.PI / 2;
+                group.add(body);
+                const stem = new THREE.Mesh(
+                    new THREE.BoxGeometry(0.06, 0.3, 0.06),
+                    new THREE.MeshStandardMaterial({ color: 0xffd700, metalness: 0.8, roughness: 0.2 })
+                );
+                stem.position.set(0, 0.2, 0);
+                group.add(stem);
+                // 发光光晕
+                const glow = new THREE.Mesh(
+                    new THREE.SphereGeometry(0.4, 6, 6),
+                    new THREE.MeshBasicMaterial({ color: 0xffd700, transparent: true, opacity: 0.08 })
+                );
+                group.add(glow);
+                group.userData = { type: 'key', collected: false, glow: glow };
+            } else if (type === 'scroll') {
+                // 遗物 - 卷轴
+                const mat = new THREE.MeshStandardMaterial({ color: 0xf5e6c8, roughness: 0.8 });
+                const scroll = new THREE.Mesh(new THREE.CylinderGeometry(0.15, 0.15, 0.5, 8), mat);
+                scroll.rotation.x = Math.PI / 2;
+                group.add(scroll);
+                const endMat = new THREE.MeshStandardMaterial({ color: 0x8a6a4a, roughness: 0.9 });
+                const end1 = new THREE.Mesh(new THREE.CylinderGeometry(0.18, 0.18, 0.05, 8), endMat);
+                end1.rotation.x = Math.PI / 2;
+                end1.position.z = -0.26;
+                group.add(end1);
+                const end2 = end1.clone();
+                end2.position.z = 0.26;
+                group.add(end2);
+                // 发光
+                const glow = new THREE.Mesh(
+                    new THREE.SphereGeometry(0.3, 6, 6),
+                    new THREE.MeshBasicMaterial({ color: 0x88aaff, transparent: true, opacity: 0.1 })
+                );
+                group.add(glow);
+                group.userData = { type: 'scroll', collected: false, glow: glow };
+            } else if (type === 'talisman') {
+                // 符咒 - 黄色纸片
+                const mat = new THREE.MeshStandardMaterial({ color: 0xffcc44, roughness: 0.7, side: THREE.DoubleSide });
+                const paper = new THREE.Mesh(new THREE.PlaneGeometry(0.4, 0.6), mat);
+                paper.position.z = 0;
+                group.add(paper);
+                // 红色符文 (简单条纹)
+                const stripeMat = new THREE.MeshStandardMaterial({ color: 0xcc2222, side: THREE.DoubleSide });
+                const stripe = new THREE.Mesh(new THREE.PlaneGeometry(0.02, 0.4), stripeMat);
+                stripe.position.set(0.1, 0.1, 0.01);
+                group.add(stripe);
+                const stripe2 = stripe.clone();
+                stripe2.position.set(-0.1, -0.1, 0.01);
+                group.add(stripe2);
+                // 发光
+                const glow = new THREE.Mesh(
+                    new THREE.SphereGeometry(0.3, 6, 6),
+                    new THREE.MeshBasicMaterial({ color: 0xffaa44, transparent: true, opacity: 0.1 })
+                );
+                group.add(glow);
+                group.userData = { type: 'talisman', collected: false, glow: glow };
+            }
             group.position.set(x, y, z);
-            group.userData = {
-                collected: false,
-                glow: glow,
-                floatPhase: Math.random() * Math.PI * 2,
-                rotSpeed: 0.8 + Math.random() * 0.6,
-            };
+            group.userData.floatPhase = Math.random() * Math.PI * 2;
             scene.add(group);
             return group;
         }
 
-        keyPositions.forEach(([x, y, z]) => {
-            const key = createKey(x, y, z);
-            keys.push(key);
+        // 创建物品
+        const keyGroups = [];
+        itemPositions.keys.forEach(([x, y, z]) => {
+            const g = createItem('key', x, y, z);
+            keyGroups.push(g);
         });
+        const scrollGroup = createItem('scroll', ...itemPositions.scroll);
+        const talismanGroup = createItem('talisman', ...itemPositions.talisman);
 
         // ============================================================
-        //  老奶奶角色
+        //  老奶奶 (增强AI)
         // ============================================================
         const granny = new THREE.Group();
-
-        // 身体 (裙子)
-        const bodyMat = new THREE.MeshStandardMaterial({
-            color: 0x1a1410,
-            roughness: 0.9,
-            metalness: 0,
-        });
+        // 身体 (旗袍)
+        const bodyMat = new THREE.MeshStandardMaterial({ color: 0x1a0f0a, roughness: 0.9 });
         const torso = new THREE.Mesh(new THREE.CylinderGeometry(0.7, 0.9, 1.2, 8), bodyMat);
         torso.position.y = 0.6;
         torso.castShadow = true;
         granny.add(torso);
-
         // 上身
-        const upperMat = new THREE.MeshStandardMaterial({
-            color: 0x2d1f18,
-            roughness: 0.9,
-        });
+        const upperMat = new THREE.MeshStandardMaterial({ color: 0x2d1f18, roughness: 0.9 });
         const upper = new THREE.Mesh(new THREE.CylinderGeometry(0.6, 0.7, 0.7, 8), upperMat);
         upper.position.y = 1.3;
         upper.castShadow = true;
         granny.add(upper);
-
-        // 头部
-        const headMat = new THREE.MeshStandardMaterial({
-            color: 0xd4b8a8,
-            roughness: 0.6,
-        });
+        // 头
+        const headMat = new THREE.MeshStandardMaterial({ color: 0xd4b8a8, roughness: 0.6 });
         const head = new THREE.Mesh(new THREE.SphereGeometry(0.4, 8, 8), headMat);
         head.position.y = 1.8;
         head.castShadow = true;
         granny.add(head);
-
-        // 头发 (灰色)
-        const hairMat = new THREE.MeshStandardMaterial({
-            color: 0x8a8a8a,
-            roughness: 0.9,
-        });
+        // 白发
+        const hairMat = new THREE.MeshStandardMaterial({ color: 0xcccccc, roughness: 0.9 });
         const hair = new THREE.Mesh(new THREE.SphereGeometry(0.42, 8, 8), hairMat);
         hair.position.y = 1.9;
         hair.scale.set(1, 0.6, 1.1);
         granny.add(hair);
-
-        // 眼睛 (红色发光)
-        const eyeMat = new THREE.MeshStandardMaterial({
-            color: 0xff2200,
-            emissive: 0xff0000,
-            emissiveIntensity: 0.6,
-        });
+        // 红眼
+        const eyeMat = new THREE.MeshStandardMaterial({ color: 0xff2200, emissive: 0xff0000, emissiveIntensity: 0.5 });
         const eyeL = new THREE.Mesh(new THREE.SphereGeometry(0.08, 6, 6), eyeMat);
         eyeL.position.set(-0.15, 1.85, 0.35);
         granny.add(eyeL);
         const eyeR = new THREE.Mesh(new THREE.SphereGeometry(0.08, 6, 6), eyeMat);
         eyeR.position.set(0.15, 1.85, 0.35);
         granny.add(eyeR);
-
-        // 围裙
-        const apronMat = new THREE.MeshStandardMaterial({
-            color: 0x3d2e26,
-            roughness: 0.9,
-        });
-        const apron = new THREE.Mesh(new THREE.CylinderGeometry(0.65, 0.75, 0.6, 8), apronMat);
-        apron.position.y = 0.5;
-        apron.scale.set(1, 1, 1.3);
-        granny.add(apron);
-
         // 手臂
-        const armMat = new THREE.MeshStandardMaterial({
-            color: 0xd4b8a8,
-            roughness: 0.7,
-        });
+        const armMat = new THREE.MeshStandardMaterial({ color: 0xd4b8a8, roughness: 0.7 });
         const armL = new THREE.Mesh(new THREE.CylinderGeometry(0.08, 0.1, 0.7, 6), armMat);
         armL.position.set(-0.7, 1.2, 0);
         armL.rotation.z = 0.2;
         armL.rotation.x = -0.3;
         granny.add(armL);
-
         const armR = new THREE.Mesh(new THREE.CylinderGeometry(0.08, 0.1, 0.7, 6), armMat);
         armR.position.set(0.7, 1.2, 0);
         armR.rotation.z = -0.2;
         armR.rotation.x = 0.3;
         granny.add(armR);
 
-        granny.position.set(-12, FLOOR_Y, -10);
+        granny.position.set(-10, FLOOR_Y, -8);
         granny.scale.set(1, 1, 1);
         scene.add(granny);
 
-        // 老奶奶状态
         const grannyState = {
-            targetX: -12,
-            targetZ: -10,
-            speed: 0.6,
-            state: 'patrol', // patrol | chase | idle
+            targetX: -10,
+            targetZ: -8,
+            speed: 0.9,
+            state: 'patrol', // patrol, chase, investigate
             chaseTimer: 0,
             alertCooldown: 0,
-            lastKnownPlayerX: 0,
-            lastKnownPlayerZ: 0,
-            nextPatrolTime: 0,
+            lastSeenX: 0,
+            lastSeenZ: 0,
             stuckTimer: 0,
-            lastX: -12,
-            lastZ: -10,
+            lastX: -10,
+            lastZ: -8,
+            patrolPoints: [],
+            currentPatrolIdx: 0,
         };
 
-        // ============================================================
-        //  碰撞检测 (简单球体/点碰撞)
-        // ============================================================
-        const walls = [];
+        // 生成巡逻点
+        function generatePatrolPoints() {
+            const pts = [];
+            for (let i = 0; i < 8; i++) {
+                let x, z, ok;
+                let attempts = 0;
+                do {
+                    x = (Math.random() - 0.5) * 24;
+                    z = (Math.random() - 0.5) * 24;
+                    ok = true;
+                    // 避免太靠近玩家初始位置
+                    if (Math.abs(x) < 3 && Math.abs(z) < 3) ok = false;
+                    attempts++;
+                } while (!ok && attempts < 20);
+                pts.push({ x, z });
+            }
+            return pts;
+        }
+        grannyState.patrolPoints = generatePatrolPoints();
 
-        // 收集所有墙壁障碍物
-        function collectWalls() {
-            // 手动定义障碍区域 (矩形)
-            const obstacles = [
-                // [x1, z1, x2, z2] 矩形区域
-                [-18, -2, -10, 2], // 左横墙
-                [-2, -2, 6, 2], // 右横墙
-                [-2, -18, 2, -8], // 后竖墙
-                [-2, 8, 2, 18], // 前竖墙
-                // 柱子区域 (小方形)
-                [-8.5, -8.5, -7.5, -7.5],
-                [-8.5, 7.5, -7.5, 8.5],
-                [7.5, -8.5, 8.5, -7.5],
-                [7.5, 7.5, 8.5, 8.5],
-                [-12.5, -0.5, -11.5, 0.5],
-                [11.5, -0.5, 12.5, 0.5],
-                [-0.5, -12.5, 0.5, -11.5],
-                [-0.5, 11.5, 0.5, 12.5],
-            ];
-            obstacles.forEach(([x1, z1, x2, z2]) => {
-                walls.push({
-                    xMin: Math.min(x1, x2),
-                    xMax: Math.max(x1, x2),
-                    zMin: Math.min(z1, z2),
-                    zMax: Math.max(z1, z2),
-                });
-            });
-            // 添加外边界
-            const margin = 0.8;
-            const half = ROOM_SIZE / 2 - margin;
-            walls.push({
-                xMin: -half,
-                xMax: half,
-                zMin: -half,
-                zMax: half,
-                isBoundary: true,
+        // ============================================================
+        //  碰撞系统 (障碍物)
+        // ============================================================
+        const obstacles = [];
+
+        function addObstacle(x1, z1, x2, z2) {
+            obstacles.push({
+                xMin: Math.min(x1, x2),
+                xMax: Math.max(x1, x2),
+                zMin: Math.min(z1, z2),
+                zMax: Math.max(z1, z2),
             });
         }
-        collectWalls();
 
-        // 碰撞检测函数
-        function checkCollision(x, z, radius = 0.5) {
-            for (const wall of walls) {
-                if (wall.isBoundary) {
-                    if (x < wall.xMin + radius || x > wall.xMax - radius ||
-                        z < wall.zMin + radius || z > wall.zMax - radius) {
-                        return true;
-                    }
-                    continue;
-                }
+        // 内墙
+        addObstacle(-11, -1, -7, 1);
+        addObstacle(7, -1, 11, 1);
+        addObstacle(-7, -7, -5, -5);
+        addObstacle(5, 5, 7, 7);
+        addObstacle(-7, 5, -5, 7);
+        addObstacle(5, -7, 7, -5);
+        // 柱子
+        pillarPos.forEach(([x, z]) => {
+            addObstacle(x - 0.5, z - 0.5, x + 0.5, z + 0.5);
+        });
+        // 家具粗略
+        const furniturePos = [
+            [-6, -5],
+            [7, 6],
+            [-7, 9],
+            [9, -7],
+            [-10, -4],
+            [10, 4],
+            [-3, 12],
+            [-5, -3],
+            [5, 7],
+            [-8, 7],
+            [8, -5]
+        ];
+        furniturePos.forEach(([x, z]) => {
+            addObstacle(x - 0.8, z - 0.8, x + 0.8, z + 0.8);
+        });
+        // 边界
+        const margin = 0.8;
+        addObstacle(-half + margin, -half + margin, half - margin, half - margin);
+
+        function checkCollision(x, z, radius = 0.45) {
+            for (const ob of obstacles) {
+                if (ob.xMin === undefined) continue;
                 // 矩形碰撞
-                const cx = Math.max(wall.xMin, Math.min(x, wall.xMax));
-                const cz = Math.max(wall.zMin, Math.min(z, wall.zMax));
+                const cx = Math.max(ob.xMin, Math.min(x, ob.xMax));
+                const cz = Math.max(ob.zMin, Math.min(z, ob.zMax));
                 const dx = x - cx;
                 const dz = z - cz;
                 if (dx * dx + dz * dz < radius * radius) {
@@ -935,22 +1022,19 @@
             return false;
         }
 
-        // 尝试移动
         function tryMove(x, z, radius = 0.45) {
-            const step = 0.05;
-            // 先尝试x方向
             if (!checkCollision(x, z, radius)) {
                 return { x, z, ok: true };
             }
-            // 尝试x方向单独
+            // 尝试x
             if (!checkCollision(x, granny.position.z, radius)) {
                 return { x, z: granny.position.z, ok: true };
             }
-            // 尝试z方向单独
             if (!checkCollision(granny.position.x, z, radius)) {
                 return { x: granny.position.x, z, ok: true };
             }
             // 微调
+            const step = 0.05;
             for (let dx of [-step, step]) {
                 for (let dz of [-step, step]) {
                     const nx = granny.position.x + dx;
@@ -963,213 +1047,288 @@
             return { x: granny.position.x, z: granny.position.z, ok: false };
         }
 
+        // 玩家移动也用同样的碰撞
+        function tryMovePlayer(x, z) {
+            return tryMove(x, z, 0.4);
+        }
+
         // ============================================================
-        //  音效 (使用 Web Audio API)
+        //  音效 (Web Audio)
         // ============================================================
         let audioCtx = null;
 
         function initAudio() {
-            if (!audioCtx) {
-                audioCtx = new(window.AudioContext || window.webkitAudioContext)();
-            }
+            if (!audioCtx) audioCtx = new(window.AudioContext || window.webkitAudioContext)();
         }
 
-        function playTone(freq, duration, type = 'sine', volume = 0.15) {
+        function playTone(freq, dur, type = 'sine', vol = 0.12) {
             try {
                 initAudio();
                 const osc = audioCtx.createOscillator();
                 const gain = audioCtx.createGain();
                 osc.type = type;
                 osc.frequency.value = freq;
-                gain.gain.setValueAtTime(volume, audioCtx.currentTime);
-                gain.gain.exponentialRampToValueAtTime(0.001, audioCtx.currentTime + duration);
+                gain.gain.setValueAtTime(vol, audioCtx.currentTime);
+                gain.gain.exponentialRampToValueAtTime(0.001, audioCtx.currentTime + dur);
                 osc.connect(gain);
                 gain.connect(audioCtx.destination);
                 osc.start();
-                osc.stop(audioCtx.currentTime + duration);
-            } catch (e) { /* 静默失败 */ }
+                osc.stop(audioCtx.currentTime + dur);
+            } catch (e) { /* 静默 */ }
         }
 
         function playPickup() {
-            playTone(880, 0.15, 'sine', 0.2);
-            setTimeout(() => playTone(1100, 0.15, 'sine', 0.15), 100);
+            playTone(880, 0.15);
+            setTimeout(() => playTone(1100, 0.12), 100);
         }
 
         function playCaught() {
-            playTone(200, 0.8, 'sawtooth', 0.25);
-            setTimeout(() => playTone(150, 0.6, 'sawtooth', 0.2), 200);
+            playTone(180, 0.8, 'sawtooth', 0.25);
+            setTimeout(() => playTone(130, 0.6, 'sawtooth', 0.2), 200);
         }
 
         function playWin() {
-            [523, 659, 784, 1047].forEach((f, i) => {
-                setTimeout(() => playTone(f, 0.2, 'sine', 0.15), i * 120);
-            });
+            [523, 659, 784, 1047].forEach((f, i) => setTimeout(() => playTone(f, 0.18, 'sine', 0.12), i * 120));
         }
 
         function playHeartbeat() {
-            playTone(40, 0.1, 'sine', 0.3);
-            setTimeout(() => playTone(35, 0.1, 'sine', 0.2), 120);
+            playTone(40, 0.08, 'sine', 0.2);
+            setTimeout(() => playTone(35, 0.08, 'sine', 0.15), 100);
         }
 
         // ============================================================
         //  游戏逻辑
         // ============================================================
-
-        // 显示消息
         let messageTimeout = null;
 
-        function showMessage(text, type = '', duration = 2500) {
-            messageEl.textContent = text;
-            messageEl.className = 'show' + (type ? ' ' + type : '');
+        function showMessage(text, type = '', dur = 2500) {
+            msgEl.textContent = text;
+            msgEl.className = 'show' + (type ? ' ' + type : '');
             clearTimeout(messageTimeout);
-            messageTimeout = setTimeout(() => {
-                messageEl.className = '';
-            }, duration);
+            messageTimeout = setTimeout(() => { msgEl.className = ''; }, dur);
         }
 
-        // 更新HUD
         function updateHUD() {
             keyCountEl.textContent = keysCollected;
-            if (keysCollected === MAX_KEYS) {
-                hudStatus.textContent = '🚪 找到出口！';
-                hudStatus.style.color = '#ffd700';
-            } else {
-                hudStatus.textContent = `🔍 寻找钥匙 (${keysCollected}/${MAX_KEYS})`;
-                hudStatus.style.color = '#aaa';
-            }
+            scrollCountEl.textContent = hasScroll ? '1' : '0';
+            talismanCountEl.textContent = hasTalisman ? '1' : '0';
+            // 状态
+            let status = '';
+            if (keysCollected === MAX_KEYS) status = '🚪 大门已开！';
+            else if (hasScroll) status = '📜 获得遗物！';
+            else if (hasTalisman) status = '🧿 获得符咒！';
+            else status = '🔍 探索古宅';
+            hudStatus.textContent = status;
         }
 
-        // 收集钥匙
-        function collectKey(index) {
-            if (keys[index].userData.collected) return;
-            keys[index].userData.collected = true;
-            keysCollected++;
+        function collectItem(group) {
+            if (group.userData.collected) return;
+            const type = group.userData.type;
+            group.userData.collected = true;
+            group.visible = false;
             playPickup();
-            showMessage(`🔑 找到钥匙！ (${keysCollected}/${MAX_KEYS})`, 'success', 1500);
+
+            if (type === 'key') {
+                keysCollected++;
+                showMessage(`🔑 找到钥匙！(${keysCollected}/${MAX_KEYS})`, 'success', 1500);
+                if (keysCollected === MAX_KEYS) {
+                    showMessage('🚪 大门解锁！快逃出去！', 'success', 3000);
+                    doorGlow.material.emissiveIntensity = 1.5;
+                    doorGlow.material.opacity = 0.8;
+                    doorPanelMesh.material.color.setHex(0x8a6a4a);
+                    doorPanelMesh.position.x = 0.4;
+                    doorPanelMesh.rotation.y = -0.3;
+                    playWin();
+                }
+            } else if (type === 'scroll') {
+                hasScroll = true;
+                showMessage('📜 你找到了老奶奶的遗物... 或许可以超度她。', 'info', 3000);
+            } else if (type === 'talisman') {
+                hasTalisman = true;
+                showMessage('🧿 获得驱邪符咒！可以用来封印老奶奶。', 'info', 3000);
+            }
             updateHUD();
+            checkWinCondition();
+        }
 
-            // 隐藏钥匙
-            const key = keys[index];
-            key.visible = false;
+        function checkWinCondition() {
+            if (isGameOver) return;
+            // 检查是否达成多种结局
+            // 结局1: 收集3钥匙并到达出口
+            // 结局2: 获得符咒后靠近老奶奶使用 (需要在更新循环检测)
+            // 结局3: 获得遗物后靠近老奶奶使用
+        }
 
-            // 检查是否收集完
-            if (keysCollected === MAX_KEYS) {
-                showMessage('🚪 所有钥匙已收集！快逃向出口！', 'success', 3000);
-                // 打开门
-                doorGlow.material.emissiveIntensity = 1.2;
-                doorGlow.material.opacity = 0.7;
-                doorPanelMesh.material.color.setHex(0x8a6a4a);
-                // 门微微打开 (动画)
-                doorPanelMesh.position.x = 0.5;
-                doorPanelMesh.rotation.y = -0.4;
-                // 播放胜利前奏
-                setTimeout(() => playWin(), 500);
+        // 检测玩家与物品的交互 (在更新循环中)
+        function checkItemPickup() {
+            const px = camera.position.x;
+            const pz = camera.position.z;
+            // 钥匙
+            keyGroups.forEach((g) => {
+                if (g.userData.collected) return;
+                const dx = px - g.position.x;
+                const dz = pz - g.position.z;
+                if (dx * dx + dz * dz < 1.8) {
+                    collectItem(g);
+                }
+            });
+            // 遗物
+            if (!scrollGroup.userData.collected) {
+                const dx = px - scrollGroup.position.x;
+                const dz = pz - scrollGroup.position.z;
+                if (dx * dx + dz * dz < 1.8) {
+                    collectItem(scrollGroup);
+                }
+            }
+            // 符咒
+            if (!talismanGroup.userData.collected) {
+                const dx = px - talismanGroup.position.x;
+                const dz = pz - talismanGroup.position.z;
+                if (dx * dx + dz * dz < 1.8) {
+                    collectItem(talismanGroup);
+                }
             }
         }
 
-        // 检查是否在出口
+        // 检测出口
         function checkExit() {
             if (keysCollected < MAX_KEYS) return false;
             const dx = camera.position.x - 0;
-            const dz = camera.position.z - (ROOM_SIZE / 2 - 1.5);
+            const dz = camera.position.z - (half - 1.5);
             return (dx * dx + dz * dz) < 2.5;
         }
 
-        // 游戏结束
-        function gameOver(caught = true) {
+        // 检测与老奶奶互动 (使用符咒或遗物)
+        function checkGrannyInteraction() {
+            if (isGameOver) return;
+            const dx = camera.position.x - granny.position.x;
+            const dz = camera.position.z - granny.position.z;
+            const dist = Math.sqrt(dx * dx + dz * dz);
+            if (dist > 3.0) return;
+
+            // 有符咒且老奶奶在附近 → 封印结局
+            if (hasTalisman && !isGameOver) {
+                // 封印老奶奶
+                gameOver(true, 'seal');
+                return;
+            }
+            // 有遗物 → 超度结局
+            if (hasScroll && !isGameOver) {
+                gameOver(true, 'exorcise');
+                return;
+            }
+        }
+
+        // 游戏结束 (多结局)
+        function gameOver(win = false, type = 'escape') {
             if (isGameOver) return;
             isGameOver = true;
-            gameState = caught ? STATE.CAUGHT : STATE.WIN;
+            gameState = STATE.ENDED;
+            controls.unlock();
 
-            if (caught) {
-                playCaught();
-                dangerVignette.className = 'caught';
-                showMessage('💀 老奶奶抓住了你...', 'danger', 3000);
-                setTimeout(() => {
-                    showEndScreen(false);
-                }, 1200);
-            } else {
+            let title = '',
+                icon = '',
+                desc = '',
+                detail = '';
+            if (type === 'escape') {
+                title = '🏃 逃出升天！';
+                icon = '🎉';
+                desc = '你成功收集钥匙，逃离了这座古宅！';
+                detail = '老奶奶的诅咒暂时消散...';
                 playWin();
-                showMessage('🎉 你成功逃出了宅邸！', 'success', 4000);
-                setTimeout(() => {
-                    showEndScreen(true);
-                }, 1500);
+            } else if (type === 'caught') {
+                title = '💀 被抓住了...';
+                icon = '😱';
+                desc = '老奶奶在黑暗中抓住了你，你永远留在了古宅。';
+                detail = '游戏结束';
+                playCaught();
+                vignette.className = 'caught';
+            } else if (type === 'seal') {
+                title = '🧿 封印成功！';
+                icon = '✨';
+                desc = '你用符咒封印了老奶奶，古宅恢复了宁静。';
+                detail = '恭喜你完成了封印结局！';
+                playWin();
+            } else if (type === 'exorcise') {
+                title = '🕊️ 超度成功！';
+                icon = '🌟';
+                desc = '你找到了老奶奶的遗物，让她得以安息。';
+                detail = '你给予了亡魂平静，获得了救赎。';
+                playWin();
+            } else if (type === 'timeout') {
+                title = '⏳ 时间耗尽';
+                icon = '⌛';
+                desc = '你在古宅中徘徊了太久，被黑暗吞噬。';
+                detail = '时间诅咒降临...';
+                playCaught();
             }
 
-            controls.unlock();
+            // 显示结束画面
+            overlay.classList.remove('hidden');
+            resultIcon.textContent = icon;
+            titleText.textContent = title;
+            subText.innerHTML = desc;
+            resultDetail.textContent = detail;
+            mainBtn.textContent = '🔄 再来一次';
+            mainBtn.className = 'btn';
+            mainBtn.onclick = () => { restartGame(); };
+            // 显示收集情况
+            const info = `🔑 ${keysCollected}/${MAX_KEYS}  ·  📜 ${hasScroll ? '✓' : '✗'}  ·  🧿 ${hasTalisman ? '✓' : '✗'}`;
+            document.querySelector('.result-detail').textContent += '  |  ' + info;
         }
 
-        // 显示结束画面
-        function showEndScreen(win) {
-            overlayScreen.classList.remove('hidden');
-            resultIcon.textContent = win ? '🎉' : '💀';
-            titleText.textContent = win ? '你逃出来了！' : '被抓住了...';
-            subText.innerHTML = win ?
-                '你成功收集了所有钥匙，逃离了恐怖老奶奶的魔掌！<br />🏆 恭喜通关！' :
-                '老奶奶在黑暗中抓住了你...<br />下次要更小心，跑得更快！';
-            mainBtn.textContent = win ? '🔄 再玩一次' : '🔄 重新挑战';
-            resultDetail.textContent = win ?
-                `⏱️ 用时 ${Math.floor(gameTime)} 秒 · 收集 ${keysCollected} 把钥匙` :
-                `⏱️ 存活 ${Math.floor(gameTime)} 秒 · 收集 ${keysCollected} 把钥匙`;
-            mainBtn.className = 'btn' + (win ? '' : ' btn-secondary');
-            mainBtn.onclick = restartGame;
-        }
-
-        // 重置游戏
+        // 重启
         function restartGame() {
             // 重置状态
             keysCollected = 0;
+            hasScroll = false;
+            hasTalisman = false;
             isGameOver = false;
             gameState = STATE.PLAYING;
-            grannyAlertLevel = 0;
+            grannyAlert = 0;
             gameTime = 0;
+            selectedIndices = [];
 
-            // 重置钥匙
-            keys.forEach((key, i) => {
-                key.userData.collected = false;
-                key.visible = true;
-                key.position.set(
-                    keyPositions[i][0],
-                    keyPositions[i][1],
-                    keyPositions[i][2]
-                );
-                key.userData.floatPhase = Math.random() * Math.PI * 2;
-            });
+            // 重置物品
+            keyGroups.forEach((g) => { g.userData.collected = false;
+                g.visible = true; });
+            scrollGroup.userData.collected = false;
+            scrollGroup.visible = true;
+            talismanGroup.userData.collected = false;
+            talismanGroup.visible = true;
 
             // 重置门
             doorGlow.material.emissiveIntensity = 0;
             doorGlow.material.opacity = 0.3;
-            doorPanelMesh.material.color.setHex(0x5a3d2e);
+            doorPanelMesh.material.color.setHex(0x6a4a32);
             doorPanelMesh.position.x = 0;
             doorPanelMesh.rotation.y = 0;
 
             // 重置老奶奶
-            granny.position.set(-12, FLOOR_Y, -10);
-            grannyState.targetX = -12;
-            grannyState.targetZ = -10;
+            granny.position.set(-10, FLOOR_Y, -8);
+            grannyState.targetX = -10;
+            grannyState.targetZ = -8;
             grannyState.state = 'patrol';
             grannyState.chaseTimer = 0;
-            grannyState.alertCooldown = 0;
+            grannyState.patrolPoints = generatePatrolPoints();
+            grannyState.currentPatrolIdx = 0;
 
             // 重置玩家
-            camera.position.set(0, 1.6, -10);
+            camera.position.set(0, 1.7, -10);
 
-            // 重置UI
-            dangerVignette.className = '';
-            heartbeatEl.className = '';
-            heartbeatEl.style.opacity = '0';
+            // UI
+            vignette.className = '';
+            heartbeat.className = '';
+            heartbeat.style.opacity = '0';
             updateHUD();
-            showMessage('🔦 找到 3 把钥匙，逃出宅邸！', '', 2000);
+            showMessage('🏮 探索古宅，寻找出路...', 'info', 2000);
 
-            // 隐藏结束画面
-            overlayScreen.classList.add('hidden');
-
-            // 锁定指针
+            overlay.classList.add('hidden');
             controls.lock();
         }
 
         // ============================================================
-        //  老奶奶 AI
+        //  老奶奶 AI (增强)
         // ============================================================
         function updateGranny(delta) {
             if (isGameOver) return;
@@ -1183,83 +1342,90 @@
             const dz = pz - gz;
             const dist = Math.sqrt(dx * dx + dz * dz);
 
-            // 更新警报等级
-            if (dist < 12) {
-                grannyAlertLevel = Math.min(1, grannyAlertLevel + delta * 0.3);
-                // 心跳效果
-                if (dist < 8 && !isGameOver) {
-                    heartbeatEl.className = 'pulse';
-                    heartbeatEl.style.opacity = '1';
-                    if (Math.random() < 0.02) playHeartbeat();
+            // 更新警报
+            if (dist < 14) {
+                grannyAlert = Math.min(1, grannyAlert + delta * 0.25);
+                if (dist < 9 && !isGameOver) {
+                    heartbeat.className = 'pulse';
+                    heartbeat.style.opacity = '1';
+                    if (Math.random() < 0.015) playHeartbeat();
                 } else {
-                    heartbeatEl.className = '';
-                    heartbeatEl.style.opacity = '0';
+                    heartbeat.className = '';
+                    heartbeat.style.opacity = '0';
                 }
-                // 红晕
-                if (dist < 6) {
-                    dangerVignette.className = 'active';
-                    const intensity = 1 - (dist / 6);
-                    dangerVignette.style.opacity = intensity * 0.6 + 0.2;
+                if (dist < 7) {
+                    vignette.className = 'active';
+                    const intensity = 1 - (dist / 7);
+                    vignette.style.opacity = intensity * 0.5 + 0.15;
                 } else {
-                    dangerVignette.className = '';
-                    dangerVignette.style.opacity = '0';
+                    vignette.className = '';
+                    vignette.style.opacity = '0';
                 }
             } else {
-                grannyAlertLevel = Math.max(0, grannyAlertLevel - delta * 0.1);
-                if (grannyAlertLevel < 0.1) {
-                    heartbeatEl.className = '';
-                    heartbeatEl.style.opacity = '0';
-                    dangerVignette.className = '';
-                    dangerVignette.style.opacity = '0';
+                grannyAlert = Math.max(0, grannyAlert - delta * 0.08);
+                if (grannyAlert < 0.1) {
+                    heartbeat.className = '';
+                    heartbeat.style.opacity = '0';
+                    vignette.className = '';
+                    vignette.style.opacity = '0';
                 }
             }
 
             // 状态切换
-            const patrolSpeed = 0.8;
-            const chaseSpeed = 2.2 + grannyAlertLevel * 0.5;
+            const patrolSpeed = 0.9 + (difficulty === 'hard' ? 0.3 : 0);
+            const chaseSpeed = 2.8 + (difficulty === 'hard' ? 0.6 : 0.2);
 
-            if (dist < 7 && grannyAlertLevel > 0.3) {
+            if (dist < 8 && grannyAlert > 0.4) {
                 grannyState.state = 'chase';
-                grannyState.lastKnownPlayerX = px;
-                grannyState.lastKnownPlayerZ = pz;
+                grannyState.lastSeenX = px;
+                grannyState.lastSeenZ = pz;
                 grannyState.chaseTimer = 0;
             } else if (grannyState.state === 'chase') {
                 grannyState.chaseTimer += delta;
-                if (grannyState.chaseTimer > 4 || dist > 14) {
+                if (grannyState.chaseTimer > 5 || dist > 16) {
                     grannyState.state = 'patrol';
                     grannyState.chaseTimer = 0;
-                    // 设定巡逻目标
-                    grannyState.targetX = (Math.random() - 0.5) * 20;
-                    grannyState.targetZ = (Math.random() - 0.5) * 20;
+                    grannyState.currentPatrolIdx = (grannyState.currentPatrolIdx + 1) % grannyState.patrolPoints.length;
+                    const pt = grannyState.patrolPoints[grannyState.currentPatrolIdx];
+                    grannyState.targetX = pt.x;
+                    grannyState.targetZ = pt.z;
                 }
             }
 
             // 移动
             let targetX = grannyState.targetX;
             let targetZ = grannyState.targetZ;
-
             if (grannyState.state === 'chase') {
                 targetX = px;
                 targetZ = pz;
+                // 困难模式会预判玩家方向
+                if (difficulty === 'hard') {
+                    // 稍微预测玩家移动方向 (简单预测)
+                    const dirX = px - grannyState.lastSeenX;
+                    const dirZ = pz - grannyState.lastSeenZ;
+                    const len = Math.sqrt(dirX * dirX + dirZ * dirZ);
+                    if (len > 0.5) {
+                        targetX += dirX / len * 1.2;
+                        targetZ += dirZ / len * 1.2;
+                    }
+                }
             }
 
-            // 限制目标在房间内
-            const bound = ROOM_SIZE / 2 - 1.5;
+            // 限制边界
+            const bound = half - 1.5;
             targetX = Math.max(-bound, Math.min(bound, targetX));
             targetZ = Math.max(-bound, Math.min(bound, targetZ));
 
-            // 向目标移动
             let dx2 = targetX - gx;
             let dz2 = targetZ - gz;
             const dist2 = Math.sqrt(dx2 * dx2 + dz2 * dz2);
 
             if (dist2 > 0.3) {
                 const speed = grannyState.state === 'chase' ? chaseSpeed : patrolSpeed;
-                const moveSpeed = Math.min(speed * delta, dist2);
+                const moveSpeed = Math.min(speed * delta * 1.2, dist2);
                 const nx = gx + (dx2 / dist2) * moveSpeed;
                 const nz = gz + (dz2 / dist2) * moveSpeed;
 
-                // 碰撞检测
                 const result = tryMove(nx, nz, 0.6);
                 granny.position.x = result.x;
                 granny.position.z = result.z;
@@ -1268,12 +1434,12 @@
                 const lookAngle = Math.atan2(px - granny.position.x, pz - granny.position.z);
                 granny.rotation.y = lookAngle;
 
-                // 走路动画 (轻微上下晃动)
-                const bob = Math.sin(gameTime * 4) * 0.02;
+                // 走路动画
+                const bob = Math.sin(gameTime * 5) * 0.025;
                 granny.position.y = FLOOR_Y + bob;
 
                 // 手臂摆动
-                const swing = Math.sin(gameTime * 4) * 0.15;
+                const swing = Math.sin(gameTime * 5) * 0.2;
                 granny.children.forEach(child => {
                     if (child.position.x < -0.5 && child.geometry.type === 'CylinderGeometry') {
                         child.rotation.x = -0.3 + swing;
@@ -1283,56 +1449,64 @@
                     }
                 });
 
-                // 检查是否抓住玩家
+                // 检查抓住玩家
                 if (dist < 1.8 && grannyState.state === 'chase') {
-                    gameOver(true);
+                    gameOver(false, 'caught');
                     return;
                 }
             } else {
-                // 到达目标，设定新巡逻点
+                // 到达巡逻点
                 if (grannyState.state === 'patrol') {
-                    grannyState.targetX = (Math.random() - 0.5) * 24;
-                    grannyState.targetZ = (Math.random() - 0.5) * 24;
+                    grannyState.currentPatrolIdx = (grannyState.currentPatrolIdx + 1) % grannyState.patrolPoints.length;
+                    const pt = grannyState.patrolPoints[grannyState.currentPatrolIdx];
+                    grannyState.targetX = pt.x;
+                    grannyState.targetZ = pt.z;
                 }
             }
 
             // 巡逻时随机改变目标
-            if (grannyState.state === 'patrol' && Math.random() < 0.005) {
-                grannyState.targetX = (Math.random() - 0.5) * 24;
-                grannyState.targetZ = (Math.random() - 0.5) * 24;
+            if (grannyState.state === 'patrol' && Math.random() < 0.003) {
+                grannyState.currentPatrolIdx = Math.floor(Math.random() * grannyState.patrolPoints.length);
+                const pt = grannyState.patrolPoints[grannyState.currentPatrolIdx];
+                grannyState.targetX = pt.x;
+                grannyState.targetZ = pt.z;
             }
 
-            // 老奶奶眼睛发光强度随警报等级变化
-            const eyeIntensity = 0.3 + grannyAlertLevel * 0.8;
+            // 眼睛发光
+            const eyeIntensity = 0.3 + grannyAlert * 0.8;
             granny.children.forEach(child => {
                 if (child.material && child.material.emissiveIntensity !== undefined &&
                     child.geometry.type === 'SphereGeometry' && child.position.y > 1.8) {
                     child.material.emissiveIntensity = eyeIntensity;
                 }
             });
+
+            // 与玩家交互 (符咒/遗物)
+            if (dist < 3.0 && !isGameOver) {
+                checkGrannyInteraction();
+            }
         }
 
         // ============================================================
         //  玩家移动
         // ============================================================
-        const keysPressed = { w: false, a: false, s: false, d: false };
-
+        const keys = { w: false, a: false, s: false, d: false };
         document.addEventListener('keydown', (e) => {
             switch (e.code) {
                 case 'KeyW':
-                    keysPressed.w = true;
+                    keys.w = true;
                     e.preventDefault();
                     break;
                 case 'KeyA':
-                    keysPressed.a = true;
+                    keys.a = true;
                     e.preventDefault();
                     break;
                 case 'KeyS':
-                    keysPressed.s = true;
+                    keys.s = true;
                     e.preventDefault();
                     break;
                 case 'KeyD':
-                    keysPressed.d = true;
+                    keys.d = true;
                     e.preventDefault();
                     break;
             }
@@ -1340,28 +1514,28 @@
         document.addEventListener('keyup', (e) => {
             switch (e.code) {
                 case 'KeyW':
-                    keysPressed.w = false;
+                    keys.w = false;
                     e.preventDefault();
                     break;
                 case 'KeyA':
-                    keysPressed.a = false;
+                    keys.a = false;
                     e.preventDefault();
                     break;
                 case 'KeyS':
-                    keysPressed.s = false;
+                    keys.s = false;
                     e.preventDefault();
                     break;
                 case 'KeyD':
-                    keysPressed.d = false;
+                    keys.d = false;
                     e.preventDefault();
                     break;
             }
         });
 
         function updatePlayer(delta) {
-            if (isGameOver || gameState === STATE.MENU) return;
+            if (isGameOver || gameState !== STATE.PLAYING) return;
 
-            const speed = 3.2;
+            const speed = 3.6;
             const forward = new THREE.Vector3(0, 0, -1).applyQuaternion(camera.quaternion);
             const right = new THREE.Vector3(1, 0, 0).applyQuaternion(camera.quaternion);
             forward.y = 0;
@@ -1369,44 +1543,35 @@
             forward.normalize();
             right.normalize();
 
-            let moveX = 0;
-            let moveZ = 0;
-
-            if (keysPressed.w) { moveX += forward.x;
+            let moveX = 0,
+                moveZ = 0;
+            if (keys.w) { moveX += forward.x;
                 moveZ += forward.z; }
-            if (keysPressed.s) { moveX -= forward.x;
+            if (keys.s) { moveX -= forward.x;
                 moveZ -= forward.z; }
-            if (keysPressed.a) { moveX -= right.x;
+            if (keys.a) { moveX -= right.x;
                 moveZ -= right.z; }
-            if (keysPressed.d) { moveX += right.x;
+            if (keys.d) { moveX += right.x;
                 moveZ += right.z; }
 
             if (moveX !== 0 || moveZ !== 0) {
                 const len = Math.sqrt(moveX * moveX + moveZ * moveZ);
                 moveX /= len;
                 moveZ /= len;
-
                 const dist = speed * delta;
                 const nx = camera.position.x + moveX * dist;
                 const nz = camera.position.z + moveZ * dist;
-
-                const result = tryMove(nx, nz, 0.4);
+                const result = tryMovePlayer(nx, nz);
                 camera.position.x = result.x;
                 camera.position.z = result.z;
 
-                // 检查是否踩到钥匙
-                keys.forEach((key, i) => {
-                    if (key.userData.collected) return;
-                    const dx = camera.position.x - key.position.x;
-                    const dz = camera.position.z - key.position.z;
-                    if (dx * dx + dz * dz < 1.5) {
-                        collectKey(i);
-                    }
-                });
+                // 检查物品收集
+                checkItemPickup();
 
                 // 检查出口
                 if (checkExit() && keysCollected === MAX_KEYS) {
-                    gameOver(false);
+                    gameOver(true, 'escape');
+                    return;
                 }
             }
 
@@ -1417,11 +1582,42 @@
             flashlight.target.position.copy(camera.position).add(dir.multiplyScalar(6));
             flashlight.target.updateMatrixWorld();
 
-            // 脚步声音效 (随机)
-            if ((keysPressed.w || keysPressed.s || keysPressed.a || keysPressed.d) && Math.random() < 0.02) {
-                playTone(80 + Math.random() * 40, 0.04, 'sine', 0.03);
+            // 脚步音效
+            if ((keys.w || keys.s || keys.a || keys.d) && Math.random() < 0.02) {
+                playTone(70 + Math.random() * 30, 0.04, 'sine', 0.02);
             }
         }
+
+        // ============================================================
+        //  UI 交互
+        // ============================================================
+        let selectedIndices = [];
+
+        // 点击开始
+        mainBtn.addEventListener('click', () => {
+            initAudio();
+            if (gameState === STATE.MENU || gameState === STATE.ENDED) {
+                restartGame();
+            } else {
+                controls.lock();
+            }
+        });
+
+        renderer.domElement.addEventListener('click', () => {
+            if (gameState === STATE.PLAYING && !isGameOver) {
+                controls.lock();
+            }
+        });
+
+        controls.addEventListener('unlock', () => { /* 可处理 */ });
+        controls.addEventListener('lock', () => { /* 可处理 */ });
+
+        // ============================================================
+        //  难度 (增加困难程度)
+        // ============================================================
+        let difficulty = 'medium'; // 通过界面按钮可以调整，但这里写死为hard增强难度
+        // 默认设为hard
+        difficulty = 'hard';
 
         // ============================================================
         //  主循环
@@ -1430,47 +1626,46 @@
 
         function animate() {
             requestAnimationFrame(animate);
-
             const delta = Math.min(clock.getDelta(), 0.05);
             gameTime += delta;
 
-            // 更新玩家
-            updatePlayer(delta);
+            if (gameState === STATE.PLAYING && !isGameOver) {
+                updatePlayer(delta);
+                updateGranny(delta);
 
-            // 更新老奶奶
-            updateGranny(delta);
+                // 物品漂浮动画
+                [...keyGroups, scrollGroup, talismanGroup].forEach((g) => {
+                    if (g.userData.collected) return;
+                    const phase = g.userData.floatPhase || 0;
+                    g.position.y += Math.sin(gameTime * 1.2 + phase) * 0.002;
+                    g.rotation.y += delta * 0.8;
+                    if (g.userData.glow) {
+                        const intensity = 0.06 + Math.sin(gameTime * 2 + phase) * 0.04;
+                        g.userData.glow.material.opacity = Math.max(0, intensity);
+                    }
+                });
 
-            // 钥匙动画
-            keys.forEach((key, i) => {
-                if (key.userData.collected) return;
-                const phase = key.userData.floatPhase;
-                key.position.y = keyPositions[i][1] + Math.sin(gameTime * 1.5 + phase) * 0.2;
-                key.rotation.y += delta * key.userData.rotSpeed;
-                // 发光闪烁
-                if (key.userData.glow) {
-                    const intensity = 0.06 + Math.sin(gameTime * 2 + phase) * 0.04;
-                    key.userData.glow.material.opacity = Math.max(0, intensity);
+                // 灯笼闪烁
+                lanternLights.forEach((light, i) => {
+                    const flicker = Math.sin(gameTime * (2 + i * 0.7)) * 0.15 + Math.sin(gameTime * (3.3 + i)) *
+                        0.1;
+                    light.intensity = 0.7 + flicker * 0.4;
+                });
+
+                // 玩家晃动
+                if (keys.w || keys.s || keys.a || keys.d) {
+                    const bob = Math.sin(gameTime * 14) * 0.012;
+                    camera.position.y = 1.7 + bob;
+                } else {
+                    camera.position.y += (1.7 - camera.position.y) * 0.05;
                 }
-            });
 
-            // 灯光闪烁
-            const flicker = Math.sin(gameTime * 3.7) * 0.15 + Math.sin(gameTime * 5.1 + 1) * 0.1;
-            flickerLight.intensity = 0.6 + flicker * 0.5;
-            flickerLight.color.setHSL(0.08 + Math.sin(gameTime * 0.3) * 0.02, 0.8, 0.5 + flicker * 0.1);
-
-            // 闪烁光2
-            const flicker2 = Math.sin(gameTime * 2.3 + 2) * 0.1;
-            flickerLight2.intensity = 0.2 + flicker2 * 0.2;
-
-            // 相机高度微调 (走路晃动)
-            if (keysPressed.w || keysPressed.s || keysPressed.a || keysPressed.d) {
-                const bob = Math.sin(gameTime * 12) * 0.015;
-                camera.position.y = 1.6 + bob;
-            } else {
-                camera.position.y += (1.6 - camera.position.y) * 0.05;
+                // 时间结局 (5分钟)
+                if (gameTime > 300) {
+                    gameOver(false, 'timeout');
+                }
             }
 
-            // 渲染
             renderer.render(scene, camera);
         }
 
@@ -1486,43 +1681,15 @@
         });
 
         // ============================================================
-        //  点击开始 / 指针锁定
+        //  启动
         // ============================================================
-        mainBtn.addEventListener('click', () => {
-            initAudio();
-            if (gameState === STATE.MENU || gameState === STATE.CAUGHT || gameState === STATE.WIN) {
-                restartGame();
-            } else {
-                controls.lock();
-            }
-        });
-
-        // 点击画布锁定指针
-        renderer.domElement.addEventListener('click', () => {
-            if (gameState === STATE.PLAYING && !isGameOver) {
-                controls.lock();
-            }
-        });
-
-        controls.addEventListener('lock', () => {
-            // 可做额外处理
-        });
-
-        controls.addEventListener('unlock', () => {
-            // 可做额外处理
-        });
-
-        // ============================================================
-        //  启动游戏
-        // ============================================================
-        // 初始状态: 菜单
         gameState = STATE.MENU;
-        overlayScreen.classList.remove('hidden');
-        resultIcon.textContent = '🏚️';
-        titleText.textContent = '恐怖老奶奶';
+        overlay.classList.remove('hidden');
+        resultIcon.textContent = '🏮';
+        titleText.textContent = '古宅惊魂';
         subText.innerHTML =
-            '你被困在一座阴森的宅邸里。<br />收集 <strong>3 把金色钥匙</strong>，找到出口逃生。<br />小心！老奶奶在黑暗中游荡...';
-        mainBtn.textContent = '开始游戏';
+            '你踏入了一座荒废百年的中式古宅。<br />收集 <strong>3把钥匙</strong> 打开大门逃离，或寻找 <strong>符咒</strong> 封印老奶奶，<br />也可找到她的 <strong>遗物</strong> 让其安息。<br />小心！她在暗处注视着你...';
+        mainBtn.textContent = '开始探险';
         resultDetail.textContent = '';
         mainBtn.className = 'btn';
         mainBtn.onclick = () => {
@@ -1530,32 +1697,14 @@
             restartGame();
         };
 
-        // 启动渲染循环
+        updateHUD();
+        showMessage('🏮 点击 "开始探险" 进入古宅', 'info', 3000);
+
         animate();
 
-        // 提示操作
-        setTimeout(() => {
-            if (gameState === STATE.MENU) {
-                showMessage('🖱️ 点击 "开始游戏" 进入宅邸', '', 3000);
-            }
-        }, 500);
-
-        console.log('🏚️ 恐怖老奶奶 - 3D逃生游戏已加载');
-        console.log('🔑 收集3把钥匙，找到出口逃离！');
-        console.log('👵 小心老奶奶！');
-
-        // ============================================================
-        //  调试辅助 (可选)
-        // ============================================================
-        window.__debug = {
-            scene,
-            camera,
-            controls,
-            granny,
-            keys,
-            gameState,
-            restart: restartGame,
-        };
+        console.log('🏮 古宅惊魂 · 恐怖老奶奶 增强版');
+        console.log('🔑 收集3钥匙逃出 / 🧿 符咒封印 / 📜 遗物超度');
+        console.log('👵 老奶奶AI增强，难度提高');
     </script>
 </body>
 </html>
