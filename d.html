@@ -1,0 +1,445 @@
+
+/**
+ * 斗地主游戏逻辑实现
+ * 包含：扑克牌定义、发牌算法、牌型判断、简单AI、游戏流程控制
+ */
+
+// --- 常量定义 ---
+const SUITS = ['♠', '♥', '♣', '♦'];
+const RANKS = ['3', '4', '5', '6', '7', '8', '9', '10', 'J', 'Q', 'K', 'A', '2'];
+const JOKERS = ['SJ', 'BJ']; // 小王, 大王
+
+// 牌的值映射，用于比较大小
+const VALUES = {
+    '3': 3, '4': 4, '5': 5, '6': 6, '7': 7, '8': 8, '9': 9, '10': 10,
+    'J': 11, 'Q': 12, 'K': 13, 'A': 14, '2': 15, 'SJ': 16, 'BJ': 17
+};
+
+class Card {
+    constructor(rank, suit, type = 'normal') {
+        this.rank = rank;
+        this.suit = suit;
+        this.type = type; // normal or joker
+        this.value = VALUES[rank];
+        this.id = `${rank}${suit || ''}`;
+        this.selected = false;
+    }
+
+    getColor() {
+        if (this.suit === '♥' || this.suit === '♦' || this.rank === 'BJ') return 'red';
+        return 'black';
+    }
+}
+
+class Game {
+    constructor() {
+        this.deck = [];
+        this.players = {
+            left: [],
+            right: [],
+            player: []
+        };
+        this.holeCards = [];
+        this.landlord = null; // 'left', 'right', 'player'
+        this.turn = null; // 当前回合
+        this.lastHand = null; // 上一手牌 {type: 'single', value: 5, count: 1, cards: []}
+        this.state = 'idle'; // idle, bidding, playing, ended
+        this.initDeck();
+    }
+
+    initDeck() {
+        this.deck = [];
+        // 普通牌
+        for (let r of RANKS) {
+            for (let s of SUITS) {
+                this.deck.push(new Card(r, s));
+            }
+        }
+        // 大小王
+        this.deck.push(new Card('SJ', '', 'joker'));
+        this.deck.push(new Card('BJ', '', 'joker'));
+    }
+
+    shuffle() {
+        for (let i = this.deck.length - 1; i > 0; i--) {
+            const j = Math.floor(Math.random() * (i + 1));
+            [this.deck[i], this.deck[j]] = [this.deck[j], this.deck[i]];
+        }
+    }
+
+    deal() {
+        this.shuffle();
+        this.players.left = this.deck.slice(0, 17);
+        this.players.right = this.deck.slice(17, 34);
+        this.players.player = this.deck.slice(34, 51);
+        this.holeCards = this.deck.slice(51, 54);
+        
+        // 排序手牌
+        this.sortHand(this.players.left);
+        this.sortHand(this.players.right);
+        this.sortHand(this.players.player);
+        
+        this.renderHands();
+        this.updateCounts();
+    }
+
+    sortHand(hand) {
+        hand.sort((a, b) => b.value - a.value);
+    }
+
+    start() {
+        document.getElementById('action-area').innerHTML = ''; // 清除开始按钮
+        this.deal();
+        this.state = 'bidding';
+        this.updateStatus("叫地主阶段");
+        
+        // 简化：随机决定谁先叫，这里假设玩家先叫
+        this.turn = 'player';
+        this.showBidOptions();
+    }
+
+    // --- 渲染相关 ---
+    renderHands() {
+        const container = document.getElementById('player-hand-container');
+        container.innerHTML = '';
+        
+        this.players.player.forEach((card, index) => {
+            const el = this.createCardElement(card);
+            el.onclick = () => this.toggleSelect(index, el);
+            container.appendChild(el);
+        });
+
+        // 电脑手牌只渲染背面数量
+        this.renderComputerHand('left', this.players.left.length);
+        this.renderComputerHand('right', this.players.right.length);
+    }
+
+    renderComputerHand(side, count) {
+        const container = document.getElementById(`hand-${side}`);
+        container.innerHTML = '';
+        // 只显示几张背面示意
+        const showCount = Math.min(count, 5);
+        for(let i=0; i<showCount; i++) {
+            const div = document.createElement('div');
+            div.className = 'card card-back w-8 h-12 border-white';
+            container.appendChild(div);
+        }
+    }
+
+    createCardElement(card) {
+        const div = document.createElement('div');
+        div.className = `card ${card.getColor()}`;
+        div.innerHTML = `
+            <div class="suit-top">${card.rank}<br>${card.suit || ''}</div>
+            <div class="suit-center">${card.suit || (card.rank==='BJ'?'👹':'🤡')}</div>
+            <div class="suit-bottom">${card.rank}<br>${card.suit || ''}</div>
+        `;
+        return div;
+    }
+
+    toggleSelect(index, el) {
+        if (this.state !== 'playing' || this.turn !== 'player') return;
+        
+        const card = this.players.player[index];
+        card.selected = !card.selected;
+        if (card.selected) el.classList.add('selected');
+        else el.classList.remove('selected');
+    }
+
+    updateCounts() {
+        document.getElementById('count-left').innerText = `${this.players.left.length}张`;
+        document.getElementById('count-right').innerText = `${this.players.right.length}张`;
+    }
+
+    updateStatus(msg) {
+        document.getElementById('game-status').innerText = msg;
+    }
+
+    // --- 叫地主逻辑 ---
+    showBidOptions() {
+        const area = document.getElementById('action-area');
+        area.innerHTML = `
+            <button onclick="game.bid(true)" class="btn-game bg-red-500 hover:bg-red-400 text-white font-bold py-2 px-6 rounded-full">抢地主</button>
+            <button onclick="game.bid(false)" class="btn-game bg-gray-500 hover:bg-gray-400 text-white font-bold py-2 px-6 rounded-full">不抢</button>
+        `;
+    }
+
+    bid(isLandlord) {
+        if (isLandlord) {
+            this.setLandlord('player');
+        } else {
+            // 简化逻辑：如果玩家不抢，随机给一个电脑
+            const lucky = Math.random() > 0.5 ? 'left' : 'right';
+            this.showMessage(lucky, "抢地主");
+            this.setLandlord(lucky);
+        }
+    }
+
+    setLandlord(who) {
+        this.landlord = who;
+        this.state = 'playing';
+        this.turn = who; // 地主先出
+        
+        // 发放底牌
+        const landlordHand = this.players[who];
+        landlordHand.push(...this.holeCards);
+        this.sortHand(landlordHand);
+        
+        // 更新UI显示底牌
+        const holeContainer = document.getElementById('hole-cards');
+        holeContainer.innerHTML = '';
+        this.holeCards.forEach(c => {
+            const el = this.createCardElement(c);
+            el.classList.remove('card'); // 移除交互样式
+            el.classList.add('w-10', 'h-14', 'text-xs');
+            holeContainer.appendChild(el);
+        });
+
+        // 更新角色标识
+        document.getElementById('player-role').innerText = who === 'player' ? '地主' : '农民';
+        document.getElementById('player-role').className = who === 'player' ? 'text-xs text-red-500 font-bold' : 'text-xs text-blue-300';
+
+        this.updateStatus(`${who === 'player' ? '你' : who === 'left' ? '左家' : '右家'}是地主`);
+        document.getElementById('action-area').innerHTML = ''; // 清除叫分按钮
+
+        this.nextTurn();
+    }
+
+    showMessage(who, text) {
+        const el = document.getElementById(`msg-${who}`);
+        el.innerText = text;
+        el.classList.remove('hidden');
+        setTimeout(() => el.classList.add('hidden'), 2000);
+    }
+
+    // --- 出牌逻辑 ---
+    nextTurn() {
+        this.updateCounts();
+        
+        // 检查胜利
+        if (this.checkWin()) return;
+
+        if (this.turn === 'player') {
+            this.updateStatus("轮到你出牌");
+            this.showPlayButtons();
+        } else {
+            this.updateStatus(`${this.turn === 'left' ? '左家' : '右家'}思考中...`);
+            document.getElementById('action-area').innerHTML = '';
+            setTimeout(() => this.aiPlay(), 1500);
+        }
+    }
+
+    showPlayButtons() {
+        const area = document.getElementById('action-area');
+        area.innerHTML = `
+            <button onclick="game.playSelected()" class="btn-game bg-green-600 hover:bg-green-500 text-white font-bold py-2 px-8 rounded-full shadow-lg">出牌</button>
+            <button onclick="game.pass()" class="btn-game bg-gray-600 hover:bg-gray-500 text-white font-bold py-2 px-4 rounded-full">不出</button>
+        `;
+    }
+
+    playSelected() {
+        const selectedCards = this.players.player.filter(c => c.selected);
+        if (selectedCards.length === 0) {
+            alert("请选择要出的牌");
+            return;
+        }
+
+        const handType = this.getHandType(selectedCards);
+        if (!handType) {
+            alert("无效的牌型");
+            return;
+        }
+
+        // 校验是否大过上家
+        if (this.lastHand && this.turn !== this.landlord) { // 地主首出不用比
+             if (!this.compareHand(handType, this.lastHand)) {
+                 alert("你的牌打不过上家");
+                 return;
+             }
+        }
+
+        // 出牌成功
+        this.executePlay('player', selectedCards, handType);
+    }
+
+    pass() {
+        if (!this.lastHand) {
+            alert("首家不能不出");
+            return;
+        }
+        this.showMessage('player', "不出");
+        this.turn = this.getNextPlayer(this.turn);
+        this.nextTurn();
+    }
+
+    executePlay(who, cards, handType) {
+        // 从手牌移除
+        const hand = this.players[who];
+        this.players[who] = hand.filter(c => !cards.includes(c));
+        
+        // 更新最后一手牌
+        this.lastHand = handType;
+        this.lastHand.who = who;
+
+        // UI更新
+        this.renderTableCards(cards);
+        if (who === 'player') {
+            this.renderHands(); // 重绘玩家手牌
+            document.getElementById('action-area').innerHTML = '';
+        } else {
+            this.renderComputerHand(who, this.players[who].length);
+        }
+
+        // 切换下一家
+        this.turn = this.getNextPlayer(who);
+        this.nextTurn();
+    }
+
+    renderTableCards(cards) {
+        const container = document.getElementById('table-cards');
+        container.innerHTML = '';
+        cards.forEach(c => {
+            const el = this.createCardElement(c);
+            el.classList.remove('card');
+            el.classList.add('w-12', 'h-16', 'text-xs');
+            container.appendChild(el);
+        });
+    }
+
+    getNextPlayer(current) {
+        if (current === 'player') return 'left';
+        if (current === 'left') return 'right';
+        return 'player';
+    }
+
+    // --- AI 逻辑 (极简版) ---
+    aiPlay() {
+        const hand = this.players[this.turn];
+        let cardsToPlay = [];
+        let handType = null;
+
+        // 策略1：如果是首家或上家是自己人(地主/农民队友)，出最小单张
+        // 策略2：如果有能管上的，管一下 (这里简化为总是出最小合法牌)
+        
+        if (!this.lastHand || this.lastHand.who === this.turn) {
+            // 自由出牌：出最小的一张
+            cardsToPlay = [hand[hand.length - 1]];
+            handType = this.getHandType(cardsToPlay);
+        } else {
+            // 跟牌：寻找能管住上家的最小牌
+            // 仅支持跟单张或对子，其他太复杂略过，直接过
+            if (this.lastHand.type === 'single') {
+                const targetVal = this.lastHand.value;
+                // 找一张比它大的
+                for (let i = hand.length - 1; i >= 0; i--) {
+                    if (hand[i].value > targetVal) {
+                        cardsToPlay = [hand[i]];
+                        handType = this.getHandType(cardsToPlay);
+                        break;
+                    }
+                }
+            } else if (this.lastHand.type === 'pair') {
+                 // 找对子
+                 // 简化：略过，直接pass
+            }
+        }
+
+        if (cardsToPlay.length > 0) {
+            this.executePlay(this.turn, cardsToPlay, handType);
+        } else {
+            this.showMessage(this.turn, "不出");
+            this.turn = this.getNextPlayer(this.turn);
+            this.nextTurn();
+        }
+    }
+
+    // --- 规则判定 ---
+    getHandType(cards) {
+        cards.sort((a, b) => b.value - a.value);
+        const len = cards.length;
+        const val0 = cards.value;
+
+        // 单张
+        if (len === 1) return { type: 'single', value: val0, count: 1, cards: cards };
+        
+        // 对子
+        if (len === 2 && cards.value === cards.value) 
+            return { type: 'pair', value: val0, count: 2, cards: cards };
+        
+        // 王炸
+        if (len === 2 && cards.rank === 'BJ' && cards.rank === 'SJ')
+            return { type: 'rocket', value: 100, count: 2, cards: cards };
+
+        // 三张
+        if (len === 3 && cards.value === cards[2].value)
+            return { type: 'triplet', value: val0, count: 3, cards: cards };
+
+        // 炸弹
+        if (len === 4 && cards[0].value === cards.value)
+            return { type: 'bomb', value: val0, count: 4, cards: cards };
+
+        // 三带一
+        if (len === 4) {
+            if (cards.value === cards[2].value) // 333+4
+                return { type: 'triplet_single', value: cards.value, count: 4, cards: cards };
+            if (cards.value === cards[3].value) // 4+333
+                return { type: 'triplet_single', value: cards.value, count: 4, cards: cards };
+        }
+
+        // 三带二 (对子)
+        if (len === 5) {
+             // 333+44
+             if (cards.value === cards[2].value && cards.value === cards[4].value)
+                 return { type: 'triplet_pair', value: cards[0].value, count: 5, cards: cards };
+             // 44+333
+             if (cards.value === cards.value && cards.value === cards.value)
+                 return { type: 'triplet_pair', value: cards[2].value, count: 5, cards: cards };
+        }
+        
+        // 顺子等复杂牌型暂略，保持代码简洁
+        return null;
+    }
+
+    compareHand(current, last) {
+        if (current.type === 'rocket') return true;
+        if (last.type === 'rocket') return false;
+        
+        if (current.type === 'bomb' && last.type !== 'bomb') return true;
+        if (current.type !== 'bomb' && last.type === 'bomb') return false;
+
+        if (current.type === last.type && current.cards.length === last.cards.length) {
+            return current.value > last.value;
+        }
+        return false;
+    }
+
+    checkWin() {
+        if (this.players.player.length === 0) {
+            this.endGame(true);
+            return true;
+        }
+        if (this.players.left.length === 0 || this.players.right.length === 0) {
+            // 农民赢
+            if (this.landlord === 'player') this.endGame(false);
+            else this.endGame(true);
+            return true;
+        }
+        return false;
+    }
+
+    endGame(playerWin) {
+        this.state = 'ended';
+        document.getElementById('action-area').innerHTML = `
+            <div class="bg-white/90 p-4 rounded-xl text-center shadow-xl animate-bounce">
+                <h2 class="text-2xl font-bold ${playerWin ? 'text-red-600' : 'text-gray-600'}">
+                    ${playerWin ? '你赢了!' : '你输了!'}
+                </h2>
+                <button onclick="location.reload()" class="mt-2 btn-game bg-blue-500 text-white px-4 py-1 rounded">再来一局</button>
+            </div>
+        `;
+        this.updateStatus("游戏结束");
+    }
+}
+
+// 启动游戏实例
+const game = new Game();
