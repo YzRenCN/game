@@ -173,7 +173,7 @@
         const GRAVITY = 0.55;
         const MAX_FALL = 10;
         const PLAYER_SPEED = 3.2;
-        const JUMP_FORCE = -8.5;
+        const JUMP_FORCE = -12;   // ✅ 增强跳跃力（原为 -8.5）
         const FRICTION = 0.85;
 
         // ---- 游戏状态 ----
@@ -678,7 +678,6 @@
 
             gameRunning = true;
             gameWin = false;
-            selectedIndices = [];
 
             // 更新UI
             levelNumEl.textContent = index + 1;
@@ -721,7 +720,7 @@
                 if (Math.abs(player.vx) < 0.05) player.vx = 0;
             }
 
-            // 跳跃
+            // 跳跃 (使用增强后的 JUMP_FORCE)
             if ((keys.jump || jumpBuffer) && player.onGround) {
                 player.vy = JUMP_FORCE;
                 player.onGround = false;
@@ -1713,6 +1712,7 @@
         console.log('🕹️ 陷阱跳跃 · Level Devil 风格');
         console.log(`📊 共 ${LEVELS.length} 关，祝你好运！`);
         console.log('⌨️ 方向键/WASD移动，空格跳跃，R键重试');
+        console.log('✅ 跳跃力已增强至 -12，轻松过关！');
     </script>
 </body>
 </html>
