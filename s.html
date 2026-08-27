@@ -1,0 +1,295 @@
+
+/**
+ * 扫雷游戏核心逻辑
+ * 包含：棋盘生成、地雷分布、递归展开、胜负判定
+ */
+
+// 游戏配置
+const CONFIG = {
+    easy: { rows: 9, cols: 9, mines: 10 },
+    medium: { rows: 16, cols: 16, mines: 40 },
+    hard: { rows: 16, cols: 30, mines: 99 }
+};
+
+let currentLevel = 'easy';
+let board = []; // 存储每个格子的数据
+let gameActive = false;
+let flagsPlaced = 0;
+let timeElapsed = 0;
+let timerInterval = null;
+let firstClick = true;
+
+// DOM 元素
+const boardEl = document.getElementById('game-board');
+const mineCountEl = document.getElementById('mine-count');
+const timerEl = document.getElementById('timer');
+const resetBtn = document.getElementById('reset-btn');
+const faceIcon = document.getElementById('face-icon');
+const diffBtns = document.querySelectorAll('.diff-btn');
+
+// 初始化游戏
+function initGame() {
+    const config = CONFIG[currentLevel];
+    gameActive = true;
+    firstClick = true;
+    flagsPlaced = 0;
+    timeElapsed = 0;
+    board = [];
+    
+    // 重置UI
+    clearInterval(timerInterval);
+    timerEl.innerText = '000';
+    updateMineCounter();
+    faceIcon.className = 'fas fa-smile text-yellow-600';
+    document.getElementById('message-overlay').classList.add('hidden');
+    
+    // 设置网格样式
+    boardEl.style.gridTemplateColumns = `repeat(${config.cols}, 24px)`;
+    boardEl.innerHTML = '';
+
+    // 生成数据结构与DOM
+    for (let r = 0; r < config.rows; r++) {
+        const row = [];
+        for (let c = 0; c < config.cols; c++) {
+            const cellData = {
+                r, c,
+                isMine: false,
+                isRevealed: false,
+                isFlagged: false,
+                neighborMines: 0,
+                element: null
+            };
+            
+            const cellEl = document.createElement('div');
+            cellEl.classList.add('cell', 'w-6', 'h-6', 'bg-gray-300', 'cursor-pointer', 'flex', 'items-center', 'justify-center', 'text-sm', 'font-bold');
+            cellEl.dataset.r = r;
+            cellEl.dataset.c = c;
+            
+            // 事件监听
+            cellEl.addEventListener('mousedown', handleMouseDown);
+            cellEl.addEventListener('mouseup', handleMouseUp);
+            cellEl.addEventListener('contextmenu', (e) => {
+                e.preventDefault();
+                handleRightClick(r, c);
+            });
+
+            cellData.element = cellEl;
+            row.push(cellData);
+            boardEl.appendChild(cellEl);
+        }
+        board.push(row);
+    }
+}
+
+// 处理鼠标按下（用于表情交互）
+function handleMouseDown(e) {
+    if (!gameActive) return;
+    if (e.button === 0) { // 左键
+        faceIcon.className = 'fas fa-surprise text-yellow-600';
+    }
+}
+
+// 处理鼠标松开（主要逻辑）
+function handleMouseUp(e) {
+    if (!gameActive) return;
+    faceIcon.className = 'fas fa-smile text-yellow-600';
+    
+    const r = parseInt(e.target.dataset.r);
+    const c = parseInt(e.target.dataset.c);
+    
+    if (e.button === 0) { // 左键
+        handleLeftClick(r, c);
+    }
+}
+
+// 左键点击逻辑
+function handleLeftClick(r, c) {
+    const cell = board[r][c];
+    if (cell.isRevealed || cell.isFlagged) return;
+
+    // 第一次点击时生成地雷，确保第一下不炸
+    if (firstClick) {
+        placeMines(r, c);
+        startTimer();
+        firstClick = false;
+    }
+
+    revealCell(r, c);
+    checkWin();
+}
+
+// 右键点击逻辑
+function handleRightClick(r, c) {
+    if (!gameActive) return;
+    const cell = board[r][c];
+    if (cell.isRevealed) return;
+
+    if (cell.isFlagged) {
+        cell.isFlagged = false;
+        cell.element.classList.remove('flagged');
+        cell.element.innerHTML = '';
+        flagsPlaced--;
+    } else {
+        cell.isFlagged = true;
+        cell.element.classList.add('flagged');
+        // 使用FontAwesome图标或简单字符
+        cell.element.innerHTML = '<i class="fas fa-flag text-red-600 text-xs"></i>';
+        flagsPlaced++;
+    }
+    updateMineCounter();
+}
+
+// 放置地雷
+function placeMines(safeR, safeC) {
+    const config = CONFIG[currentLevel];
+    let minesPlaced = 0;
+    while (minesPlaced < config.mines) {
+        const r = Math.floor(Math.random() * config.rows);
+        const c = Math.floor(Math.random() * config.cols);
+        
+        // 避开第一次点击的位置及其周围（可选，这里只避开本身）
+        if ((r === safeR && c === safeC) || board[r][c].isMine) continue;
+        
+        board[r][c].isMine = true;
+        minesPlaced++;
+    }
+    calculateNumbers();
+}
+
+// 计算周围地雷数
+function calculateNumbers() {
+    const config = CONFIG[currentLevel];
+    for (let r = 0; r < config.rows; r++) {
+        for (let c = 0; c < config.cols; c++) {
+            if (board[r][c].isMine) continue;
+            let count = 0;
+            getNeighbors(r, c).forEach(n => {
+                if (board[n.r][n.c].isMine) count++;
+            });
+            board[r][c].neighborMines = count;
+        }
+    }
+}
+
+// 获取邻居坐标
+function getNeighbors(r, c) {
+    const config = CONFIG[currentLevel];
+    const neighbors = [];
+    for (let i = -1; i <= 1; i++) {
+        for (let j = -1; j <= 1; j++) {
+            if (i === 0 && j === 0) continue;
+            const nr = r + i;
+            const nc = c + j;
+            if (nr >= 0 && nr < config.rows && nc >= 0 && nc < config.cols) {
+                neighbors.push({r: nr, c: nc});
+            }
+        }
+    }
+    return neighbors;
+}
+
+// 揭开格子（递归）
+function revealCell(r, c) {
+    const cell = board[r][c];
+    if (cell.isRevealed || cell.isFlagged) return;
+
+    cell.isRevealed = true;
+    cell.element.classList.add('revealed');
+
+    if (cell.isMine) {
+        gameOver(false, cell);
+        return;
+    }
+
+    if (cell.neighborMines > 0) {
+        cell.element.innerText = cell.neighborMines;
+        cell.element.classList.add(`num-${cell.neighborMines}`);
+    } else {
+        // 空白格，递归展开
+        getNeighbors(r, c).forEach(n => revealCell(n.r, n.c));
+    }
+}
+
+// 游戏结束
+function gameOver(win, triggerCell) {
+    gameActive = false;
+    clearInterval(timerInterval);
+    
+    if (win) {
+        faceIcon.className = 'fas fa-sunglasses text-yellow-600';
+        document.getElementById('end-title').innerText = "恭喜获胜!";
+        document.getElementById('end-desc').innerText = `用时: ${timeElapsed}秒`;
+    } else {
+        faceIcon.className = 'fas fa-dizzy text-red-600';
+        if (triggerCell) {
+            triggerCell.element.classList.add('mine-exploded');
+            triggerCell.element.innerHTML = '<i class="fas fa-bomb text-black"></i>';
+        }
+        // 显示所有地雷
+        board.forEach(row => row.forEach(cell => {
+            if (cell.isMine && !cell.isFlagged) {
+                cell.element.classList.add('revealed');
+                cell.element.innerHTML = '<i class="fas fa-bomb text-black text-xs"></i>';
+            } else if (!cell.isMine && cell.isFlagged) {
+                // 标错的地雷
+                cell.element.classList.add('revealed');
+                cell.element.innerHTML = '<i class="fas fa-times text-red-600"></i>';
+            }
+        }));
+        document.getElementById('end-title').innerText = "游戏结束";
+        document.getElementById('end-desc').innerText = "踩到地雷了！";
+    }
+    
+    setTimeout(() => {
+        document.getElementById('message-overlay').classList.remove('hidden');
+    }, 1000);
+}
+
+// 检查胜利条件
+function checkWin() {
+    const config = CONFIG[currentLevel];
+    let revealedCount = 0;
+    board.forEach(row => row.forEach(cell => {
+        if (cell.isRevealed) revealedCount++;
+    }));
+
+    if (revealedCount === (config.rows * config.cols - config.mines)) {
+        gameOver(true);
+    }
+}
+
+// 辅助功能
+function updateMineCounter() {
+    const config = CONFIG[currentLevel];
+    const remaining = config.mines - flagsPlaced;
+    mineCountEl.innerText = remaining.toString().padStart(3, '0');
+}
+
+function startTimer() {
+    timerInterval = setInterval(() => {
+        timeElapsed++;
+        timerEl.innerText = timeElapsed.toString().padStart(3, '0');
+        if (timeElapsed > 999) clearInterval(timerInterval);
+    }, 1000);
+}
+
+function setDifficulty(level) {
+    currentLevel = level;
+    // 更新按钮样式
+    diffBtns.forEach(btn => {
+        if (btn.dataset.level === level) {
+            btn.classList.add('bg-gray-400', 'border-gray-600');
+            btn.classList.remove('bg-gray-200', 'border-gray-400');
+        } else {
+            btn.classList.remove('bg-gray-400', 'border-gray-600');
+            btn.classList.add('bg-gray-200', 'border-gray-400');
+        }
+    });
+    initGame();
+}
+
+// 绑定重置按钮
+resetBtn.addEventListener('click', initGame);
+
+// 启动默认游戏
+setDifficulty('easy');
