@@ -1,0 +1,631 @@
+
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>古宅惊魂：多重结局</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    <style>
+        body { margin: 0; overflow: hidden; background-color: #050505; font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; user-select: none; }
+        #game-canvas { position: absolute; top: 0; left: 0; width: 100%; height: 100%; z-index: 1; }
+        
+        /* UI Layer */
+        #ui-layer { position: absolute; top: 0; left: 0; width: 100%; height: 100%; z-index: 10; pointer-events: none; display: flex; flex-direction: column; justify-content: space-between; padding: 20px; box-sizing: border-box; }
+        
+        /* 动态光照效果 */
+        .flashlight-overlay {
+            position: absolute; top: 0; left: 0; width: 100%; height: 100%;
+            background: radial-gradient(circle at 50% 50%, transparent 15%, rgba(0,0,0,0.95) 40%, rgba(0,0,0,1) 100%);
+            pointer-events: none; z-index: 5; mix-blend-mode: hard-light;
+        }
+
+        /* 交互提示 */
+        #interaction-msg {
+            position: absolute; top: 55%; left: 50%; transform: translate(-50%, -50%);
+            color: #fff; background: rgba(0,0,0,0.7); padding: 8px 16px; border-radius: 20px;
+            font-size: 14px; border: 1px solid rgba(255,255,255,0.3); display: none;
+            text-shadow: 0 0 5px #fff;
+        }
+
+        /* 物品栏 */
+        .inventory-bar {
+            display: flex; gap: 10px; pointer-events: auto;
+            background: rgba(20, 20, 20, 0.8); padding: 10px; border-radius: 12px;
+            backdrop-filter: blur(5px); border: 1px solid #333;
+        }
+        .slot {
+            width: 50px; height: 50px; border: 2px solid #444; border-radius: 8px;
+            display: flex; align-items: center; justify-content: center; color: #aaa;
+            transition: all 0.2s; position: relative;
+        }
+        .slot.active { border-color: #fbbf24; box-shadow: 0 0 10px rgba(251, 191, 36, 0.3); color: #fff; }
+        .slot i { font-size: 20px; }
+        .slot .count { position: absolute; bottom: 2px; right: 4px; font-size: 10px; color: #fff; }
+
+        /* 屏幕特效 */
+        .screen-overlay {
+            position: fixed; top: 0; left: 0; width: 100%; height: 100%;
+            background: black; z-index: 100; display: flex; align-items: center; justify-content: center;
+            flex-direction: column; color: white; transition: opacity 1s;
+        }
+        .hidden { opacity: 0; pointer-events: none; }
+        
+        /* 结局卡片 */
+        .ending-card {
+            background: #1a1a1a; border: 1px solid #333; padding: 30px; border-radius: 10px;
+            max-width: 500px; text-align: center; box-shadow: 0 0 30px rgba(0,0,0,0.8);
+        }
+        .ending-title { font-size: 2em; margin-bottom: 10px; font-weight: bold; }
+        .ending-desc { color: #aaa; margin-bottom: 20px; line-height: 1.6; }
+        
+        /* 准星 */
+        #crosshair {
+            position: absolute; top: 50%; left: 50%; width: 6px; height: 6px;
+            background: rgba(255, 255, 255, 0.8); border-radius: 50%;
+            transform: translate(-50%, -50%); pointer-events: none; z-index: 20;
+            box-shadow: 0 0 4px white;
+        }
+
+        /* 状态指示器 */
+        .status-panel {
+            pointer-events: auto; background: rgba(0,0,0,0.6); padding: 10px 15px;
+            border-radius: 8px; color: #ddd; font-size: 14px; border-left: 3px solid #555;
+        }
+        .danger { border-left-color: #ef4444; animation: pulse-red 1s infinite; }
+        @keyframes pulse-red { 0% { box-shadow: 0 0 0 rgba(239, 68, 68, 0); } 50% { box-shadow: 0 0 10px rgba(239, 68, 68, 0.5); } 100% { box-shadow: 0 0 0 rgba(239, 68, 68, 0); } }
+    </style>
+    <!-- Three.js -->
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/three@0.128.0/examples/js/controls/PointerLockControls.js"></script>
+</head>
+<body>
+
+    <!-- 3D 渲染层 -->
+    <div id="game-canvas"></div>
+    
+    <!-- 光照遮罩 -->
+    <div class="flashlight-overlay"></div>
+    <div id="crosshair"></div>
+
+    <!-- UI 层 -->
+    <div id="ui-layer">
+        <!-- 顶部信息 -->
+        <div class="flex justify-between items-start w-full">
+            <div class="status-panel" id="game-status">
+                <div class="font-bold text-lg">第 <span id="day-count">1</span> 天</div>
+                <div class="text-xs text-gray-400">探索古宅，寻找出路</div>
+            </div>
+            <div class="status-panel" id="audio-status">
+                <i class="fas fa-volume-mute mr-2"></i>保持安静
+            </div>
+        </div>
+
+        <!-- 交互提示 -->
+        <div id="interaction-msg">按 E 互动</div>
+
+        <!-- 底部物品栏 -->
+        <div class="flex justify-center w-full mb-4">
+            <div class="inventory-bar">
+                <div class="slot active" id="slot-0"><i class="fas fa-hand-paper"></i></div>
+                <div class="slot" id="slot-1"></div>
+                <div class="slot" id="slot-2"></div>
+                <div class="slot" id="slot-3"></div>
+            </div>
+        </div>
+    </div>
+
+    <!-- 开始界面 -->
+    <div id="start-screen" class="screen-overlay">
+        <h1 class="text-5xl font-bold mb-2 text-red-600 tracking-widest" style="text-shadow: 0 0 10px red;">古宅惊魂</h1>
+        <p class="text-gray-400 mb-8">多重结局 · 生存挑战</p>
+        <div class="max-w-md text-center text-sm text-gray-500 mb-8 space-y-2">
+            <p><span class="text-white">WASD</span> 移动 | <span class="text-white">SHIFT</span> 奔跑 | <span class="text-white">E</span> 互动</p>
+            <p>找到 <span class="text-yellow-500">钥匙</span> 打开大门，或者寻找其他逃脱方式。</p>
+            <p>小心奶奶，她听得见你的脚步声。</p>
+        </div>
+        <button id="btn-start" class="px-8 py-3 bg-red-900 hover:bg-red-800 text-white rounded shadow-lg transition transform hover:scale-105 font-bold">
+            进入古宅
+        </button>
+    </div>
+
+    <!-- 结局界面 -->
+    <div id="ending-screen" class="screen-overlay hidden">
+        <div class="ending-card">
+            <div id="ending-icon" class="text-6xl mb-4 text-gray-600"></div>
+            <h2 id="ending-title" class="ending-title">结局</h2>
+            <p id="ending-desc" class="ending-desc">描述...</p>
+            <div class="text-xs text-gray-600 mb-6">已解锁结局: <span id="unlocked-count">0</span>/4</div>
+            <button onclick="location.reload()" class="px-6 py-2 bg-gray-700 hover:bg-gray-600 text-white rounded transition">
+                再次尝试
+            </button>
+        </div>
+    </div>
+
+    <script>
+        // --- 游戏配置 ---
+        const CONFIG = {
+            speed: 5,
+            runSpeed: 9,
+            grannySpeed: 2.8,
+            interactDist: 3.5,
+            viewDistance: 25
+        };
+
+        // --- 全局状态 ---
+        let state = {
+            day: 1,
+            inventory: [null, null, null, null],
+            selectedSlot: 0,
+            hasKey: false,
+            hasHammer: false,
+            hasCarKey: false,
+            doorOpen: false,
+            ventOpen: false,
+            carReady: false,
+            gameOver: false,
+            endingsUnlocked: JSON.parse(localStorage.getItem('granny_endings') || '[]')
+        };
+
+        // --- Three.js 变量 ---
+        let scene, camera, renderer, controls;
+        let moveF=false, moveB=false, moveL=false, moveR=false, running=false;
+        let velocity = new THREE.Vector3();
+        let direction = new THREE.Vector3();
+        let prevTime = performance.now();
+        let raycaster = new THREE.Raycaster();
+        
+        let objects = []; // 可交互物体
+        let walls = [];   // 碰撞墙
+        let grannyMesh;
+        let particles = []; // 灰尘粒子
+
+        // --- 初始化 ---
+        function init() {
+            const container = document.getElementById('game-canvas');
+            
+            // 场景
+            scene = new THREE.Scene();
+            scene.background = new THREE.Color(0x050505);
+            scene.fog = new THREE.FogExp2(0x000000, 0.08); // 浓雾
+
+            // 相机
+            camera = new THREE.PerspectiveCamera(75, window.innerWidth/window.innerHeight, 0.1, 100);
+            camera.position.set(0, 1.7, 8);
+
+            // 渲染器
+            renderer = new THREE.WebGLRenderer({ antialias: true });
+            renderer.setSize(window.innerWidth, window.innerHeight);
+            renderer.shadowMap.enabled = true;
+            container.appendChild(renderer.domElement);
+
+            // 控制器
+            controls = new THREE.PointerLockControls(camera, document.body);
+            
+            // 灯光系统
+            setupLighting();
+
+            // 构建世界
+            buildWorld();
+            createGranny();
+            createParticles();
+
+            // 事件
+            document.getElementById('btn-start').addEventListener('click', () => controls.lock());
+            controls.addEventListener('lock', () => {
+                document.getElementById('start-screen').classList.add('hidden');
+                state.gameOver = false;
+            });
+            controls.addEventListener('unlock', () => {
+                if(!state.gameOver) {
+                    // 暂停菜单逻辑可扩展
+                }
+            });
+
+            document.addEventListener('keydown', onKeyDown);
+            document.addEventListener('keyup', onKeyUp);
+            window.addEventListener('resize', onResize);
+
+            animate();
+        }
+
+        function setupLighting() {
+            // 环境光 (极暗)
+            const ambient = new THREE.AmbientLight(0xffffff, 0.02);
+            scene.add(ambient);
+
+            // 手电筒 (SpotLight)
+            const flash = new THREE.SpotLight(0xffffee, 1.5, CONFIG.viewDistance, Math.PI/5, 0.5, 1);
+            flash.position.set(0,0,0);
+            flash.target.position.set(0,0,-1);
+            camera.add(flash);
+            camera.add(flash.target);
+            scene.add(camera);
+        }
+
+        // --- 世界构建 ---
+        function buildWorld() {
+            // 材质
+            const wallMat = new THREE.MeshStandardMaterial({ color: 0x3d2e2e, roughness: 0.9 });
+            const floorMat = new THREE.MeshStandardMaterial({ color: 0x1a1a1a, roughness: 0.8 });
+            const woodMat = new THREE.MeshStandardMaterial({ color: 0x5c4033 });
+
+            // 地板
+            const floor = new THREE.Mesh(new THREE.PlaneGeometry(60, 60), floorMat);
+            floor.rotation.x = -Math.PI/2;
+            scene.add(floor);
+
+            // 简单的房屋布局 (1=墙, 0=空, K=钥匙, H=锤子, C=车钥匙, D=门, V=通风口, R=奶奶出生点)
+            const layout = [
+                "WWWWWWWWWW",
+                "W00W00K00W",
+                "W0W0W0W0WW",
+                "W0W000000W",
+                "WWWHWWWW0W",
+                "W000000V0W",
+                "W0W0WWWW0W",
+                "W0W00D000W",
+                "W0000W00CW",
+                "WWWWWWWWWW"
+            ];
+
+            const UNIT = 4;
+
+            for(let z=0; z<layout.length; z++) {
+                for(let x=0; x<layout[z].length; x++) {
+                    const type = layout[z][x];
+                    const px = (x - 5) * UNIT;
+                    const pz = (z - 5) * UNIT;
+
+                    if(type === 'W') {
+                        const h = 4;
+                        const wall = new THREE.Mesh(new THREE.BoxGeometry(UNIT, h, UNIT), wallMat);
+                        wall.position.set(px, h/2, pz);
+                        scene.add(wall);
+                        walls.push(wall);
+                    } else if (type === 'D') {
+                        // 前门
+                        const door = new THREE.Mesh(new THREE.BoxGeometry(UNIT, 3.5, 0.5), woodMat);
+                        door.position.set(px, 1.75, pz);
+                        door.userData = { type: 'door', id: 'main_door' };
+                        scene.add(door);
+                        objects.push(door);
+                        walls.push(door); // 初始是墙
+                    } else if (type === 'V') {
+                        // 通风口
+                        const vent = new THREE.Mesh(new THREE.BoxGeometry(1.5, 1.5, 0.2), new THREE.MeshStandardMaterial({color:0x222222}));
+                        vent.position.set(px, 1, pz);
+                        vent.userData = { type: 'vent', id: 'secret_vent' };
+                        scene.add(vent);
+                        objects.push(vent);
+                    } else if (type === 'K') {
+                        createProp('key', px, 0.5, pz, 0xffd700);
+                    } else if (type === 'H') {
+                        createProp('hammer', px, 0.5, pz, 0x888888);
+                    } else if (type === 'C') {
+                        createProp('car_key', px, 0.5, pz, 0x00ff00);
+                    }
+                }
+            }
+        }
+
+        function createProp(type, x, y, z, color) {
+            let geo, mat;
+            if(type === 'key') geo = new THREE.TorusGeometry(0.2, 0.05, 8, 16);
+            else if(type === 'hammer') geo = new THREE.BoxGeometry(0.1, 0.4, 0.1);
+            else geo = new THREE.BoxGeometry(0.2, 0.1, 0.1);
+
+            mat = new THREE.MeshStandardMaterial({ color: color, emissive: color, emissiveIntensity: 0.5 });
+            const mesh = new THREE.Mesh(geo, mat);
+            mesh.position.set(x, y, z);
+            
+            // 添加浮动动画数据
+            mesh.userData = { type: 'item', itemType: type, floatOffset: Math.random() * 100 };
+            
+            // 点光源照亮物品
+            const light = new THREE.PointLight(color, 1, 3);
+            mesh.add(light);
+            
+            scene.add(mesh);
+            objects.push(mesh);
+        }
+
+        function createGranny() {
+            grannyMesh = new THREE.Group();
+            
+            // 身体
+            const body = new THREE.Mesh(new THREE.CylinderGeometry(0.4, 0.4, 1.8, 8), new THREE.MeshStandardMaterial({color: 0x222222}));
+            body.position.y = 0.9;
+            grannyMesh.add(body);
+            
+            // 头
+            const head = new THREE.Mesh(new THREE.SphereGeometry(0.35, 16, 16), new THREE.MeshStandardMaterial({color: 0xcccccc}));
+            head.position.y = 2.0;
+            grannyMesh.add(head);
+
+            // 眼睛
+            const eyeGeo = new THREE.SphereGeometry(0.05);
+            const eyeMat = new THREE.MeshBasicMaterial({color: 0xff0000});
+            const le = new THREE.Mesh(eyeGeo, eyeMat); le.position.set(-0.1, 2.05, 0.3);
+            const re = new THREE.Mesh(eyeGeo, eyeMat); re.position.set(0.1, 2.05, 0.3);
+            grannyMesh.add(le); grannyMesh.add(re);
+
+            // 初始位置
+            grannyMesh.position.set(10, 0, 10);
+            scene.add(grannyMesh);
+        }
+
+        function createParticles() {
+            const geo = new THREE.BufferGeometry();
+            const count = 200;
+            const pos = new Float32Array(count * 3);
+            for(let i=0; i<count*3; i++) pos[i] = (Math.random() - 0.5) * 40;
+            geo.setAttribute('position', new THREE.BufferAttribute(pos, 3));
+            const mat = new THREE.PointsMaterial({color: 0x888888, size: 0.05, transparent: true, opacity: 0.3});
+            const pts = new THREE.Points(geo, mat);
+            scene.add(pts);
+        }
+
+        // --- 游戏逻辑 ---
+
+        function onKeyDown(e) {
+            switch(e.code) {
+                case 'KeyW': moveF = true; break;
+                case 'KeyS': moveB = true; break;
+                case 'KeyA': moveL = true; break;
+                case 'KeyD': moveR = true; break;
+                case 'ShiftLeft': running = true; break;
+                case 'Digit1': selectSlot(0); break;
+                case 'Digit2': selectSlot(1); break;
+                case 'Digit3': selectSlot(2); break;
+                case 'Digit4': selectSlot(3); break;
+                case 'KeyE': tryInteract(); break;
+            }
+        }
+
+        function onKeyUp(e) {
+            switch(e.code) {
+                case 'KeyW': moveF = false; break;
+                case 'KeyS': moveB = false; break;
+                case 'KeyA': moveL = false; break;
+                case 'KeyD': moveR = false; break;
+                case 'ShiftLeft': running = false; break;
+            }
+        }
+
+        function selectSlot(idx) {
+            state.selectedSlot = idx;
+            document.querySelectorAll('.slot').forEach((el, i) => {
+                el.classList.toggle('active', i === idx);
+            });
+        }
+
+        function addToInventory(itemType) {
+            const emptyIdx = state.inventory.indexOf(null);
+            if(emptyIdx !== -1) {
+                state.inventory[emptyIdx] = itemType;
+                const slotEl = document.getElementById(`slot-${emptyIdx}`);
+                let iconClass = '';
+                if(itemType === 'key') iconClass = 'fas fa-key text-yellow-400';
+                if(itemType === 'hammer') iconClass = 'fas fa-hammer text-gray-400';
+                if(itemType === 'car_key') iconClass = 'fas fa-car text-green-400';
+                slotEl.innerHTML = `<i class="${iconClass}"></i>`;
+                
+                if(itemType === 'key') state.hasKey = true;
+                if(itemType === 'hammer') state.hasHammer = true;
+                if(itemType === 'car_key') state.hasCarKey = true;
+            }
+        }
+
+        function tryInteract() {
+            raycaster.setFromCamera(new THREE.Vector2(0,0), camera);
+            const intersects = raycaster.intersectObjects(objects);
+            
+            if(intersects.length > 0 && intersects.distance < CONFIG.interactDist) {
+                const obj = intersects.object;
+                const data = obj.userData;
+
+                if(data.type === 'item') {
+                    scene.remove(obj);
+                    objects = objects.filter(o => o !== obj);
+                    addToInventory(data.itemType);
+                    showMsg("获得了 " + data.itemType);
+                }
+                else if(data.type === 'door') {
+                    if(state.hasKey) {
+                        triggerEnding('normal');
+                    } else {
+                        showMsg("门锁着，需要钥匙");
+                    }
+                }
+                else if(data.type === 'vent') {
+                    if(state.hasHammer) {
+                        triggerEnding('secret');
+                    } else {
+                        showMsg("通风口被钉死了，需要锤子");
+                    }
+                }
+                else if(data.type === 'car') { // 假设车库在地图外，这里简化为特定地点互动
+                     // 实际逻辑中可能需要走到特定坐标
+                }
+            }
+        }
+
+        // 特殊互动：如果在特定区域按E且持有车钥匙
+        function checkSpecialInteractions() {
+            // 简单距离检测模拟车库 (假设在地图右下角)
+            const distToGarage = camera.position.distanceTo(new THREE.Vector3(12, 0, 12));
+            if(distToGarage < 3 && state.hasCarKey) {
+                triggerEnding('car');
+            }
+        }
+
+        function showMsg(text) {
+            const el = document.getElementById('interaction-msg');
+            el.innerText = text;
+            el.style.display = 'block';
+            setTimeout(() => el.style.display = 'none', 2000);
+        }
+
+        function updateGranny(delta) {
+            if(!grannyMesh) return;
+            
+            const dist = grannyMesh.position.distanceTo(camera.position);
+            
+            // 简单的AI：如果距离小于15，开始追踪
+            if(dist < 15) {
+                grannyMesh.lookAt(camera.position.x, 1, camera.position.z);
+                const dir = new THREE.Vector3().subVectors(camera.position, grannyMesh.position).normalize();
+                dir.y = 0;
+                
+                // 速度随天数增加
+                const speed = CONFIG.grannySpeed * (1 + state.day * 0.1);
+                grannyMesh.position.add(dir.multiplyScalar(speed * delta));
+
+                // 危险提示
+                const status = document.getElementById('audio-status');
+                if(dist < 8) {
+                    status.innerHTML = '<i class="fas fa-exclamation-triangle text-red-500 mr-2"></i>奶奶在附近!';
+                    status.classList.add('danger');
+                } else {
+                    status.innerHTML = '<i class="fas fa-volume-mute mr-2"></i>保持安静';
+                    status.classList.remove('danger');
+                }
+
+                // 抓住玩家
+                if(dist < 1.2) {
+                    triggerEnding('bad');
+                }
+            }
+        }
+
+        function triggerEnding(type) {
+            if(state.gameOver) return;
+            state.gameOver = true;
+            controls.unlock();
+
+            let title, desc, icon, color;
+            
+            if(type === 'bad') {
+                title = "结局: 噩梦循环";
+                desc = "你被奶奶抓住了。她把你拖回了地下室... 明天又是新的一天。";
+                icon = "fa-skull";
+                color = "text-red-600";
+            } else if (type === 'normal') {
+                title = "结局: 逃出生天";
+                desc = "你用钥匙打开了大门，冲进了夜色中。你自由了，但这段记忆将永远伴随你。";
+                icon = "fa-door-open";
+                color = "text-blue-400";
+                unlockEnding('normal');
+            } else if (type === 'secret') {
+                title = "结局: 黑暗中的秘密";
+                desc = "你用锤子砸开了通风口，爬进了狭窄的通道。你发现了奶奶不为人知的秘密实验室...";
+                icon = "fa-user-secret";
+                color = "text-purple-400";
+                unlockEnding('secret');
+            } else if (type === 'car') {
+                title = "结局: 极速逃离";
+                desc = "你启动了那辆旧卡车，引擎轰鸣声引来了奶奶，但你已经踩下了油门。";
+                icon = "fa-car-side";
+                color = "text-green-400";
+                unlockEnding('car');
+            }
+
+            const screen = document.getElementById('ending-screen');
+            screen.classList.remove('hidden');
+            document.getElementById('ending-title').innerText = title;
+            document.getElementById('ending-title').className = `ending-title ${color}`;
+            document.getElementById('ending-desc').innerText = desc;
+            document.getElementById('ending-icon').innerHTML = `<i class="fas ${icon}"></i>`;
+            document.getElementById('unlocked-count').innerText = state.endingsUnlocked.length;
+        }
+
+        function unlockEnding(id) {
+            if(!state.endingsUnlocked.includes(id)) {
+                state.endingsUnlocked.push(id);
+                localStorage.setItem('granny_endings', JSON.stringify(state.endingsUnlocked));
+            }
+        }
+
+        function onResize() {
+            camera.aspect = window.innerWidth / window.innerHeight;
+            camera.updateProjectionMatrix();
+            renderer.setSize(window.innerWidth, window.innerHeight);
+        }
+
+        // --- 主循环 ---
+        function animate() {
+            requestAnimationFrame(animate);
+
+            if(!state.gameOver && controls.isLocked) {
+                const time = performance.now();
+                const delta = (time - prevTime) / 1000;
+
+                // 物理移动
+                velocity.x -= velocity.x * 10.0 * delta;
+                velocity.z -= velocity.z * 10.0 * delta;
+
+                direction.z = Number(moveF) - Number(moveB);
+                direction.x = Number(moveR) - Number(moveL);
+                direction.normalize();
+
+                const spd = running ? CONFIG.runSpeed : CONFIG.speed;
+                if(moveF || moveB) velocity.z -= direction.z * 40.0 * delta * spd;
+                if(moveL || moveR) velocity.x -= direction.x * 40.0 * delta * spd;
+
+                controls.moveRight(-velocity.x * delta);
+                controls.moveForward(-velocity.z * delta);
+
+                // 简单墙壁碰撞
+                walls.forEach(w => {
+                    const box = new THREE.Box3().setFromObject(w);
+                    if(box.containsPoint(camera.position)) {
+                        controls.moveRight(velocity.x * delta);
+                        controls.moveForward(velocity.z * delta);
+                        velocity.set(0,0,0);
+                    }
+                });
+
+                // 交互检测UI更新
+                raycaster.setFromCamera(new THREE.Vector2(0,0), camera);
+                const hits = raycaster.intersectObjects(objects);
+                const msg = document.getElementById('interaction-msg');
+                if(hits.length > 0 && hits.distance < CONFIG.interactDist) {
+                    msg.style.display = 'block';
+                    const t = hits.object.userData;
+                    if(t.type === 'item') msg.innerText = `按 E 拾取 ${t.itemType}`;
+                    else if(t.type === 'door') msg.innerText = state.hasKey ? "按 E 开门" : "门锁着";
+                    else if(t.type === 'vent') msg.innerText = state.hasHammer ? "按 E 砸开" : "需要工具";
+                } else {
+                    // 检查车库互动
+                    const distToGarage = camera.position.distanceTo(new THREE.Vector3(12, 0, 12));
+                    if(distToGarage < 3 && state.hasCarKey) {
+                         msg.style.display = 'block';
+                         msg.innerText = "按 E 启动汽车";
+                    } else {
+                         msg.style.display = 'none';
+                    }
+                }
+                
+                checkSpecialInteractions();
+                updateGranny(delta);
+
+                // 物品浮动动画
+                objects.forEach(obj => {
+                    if(obj.userData.type === 'item') {
+                        obj.rotation.y += delta;
+                        obj.position.y = 0.5 + Math.sin(time * 0.003 + obj.userData.floatOffset) * 0.1;
+                    }
+                });
+
+                prevTime = time;
+            }
+            
+            renderer.render(scene, camera);
+        }
+
+        init();
+    </script>
+</body>
+</html>
